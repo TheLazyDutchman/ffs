@@ -1,3 +1,5 @@
+use std::{error::Error, fmt::Display};
+
 pub mod token;
 
 #[derive(Debug)]
@@ -5,11 +7,20 @@ pub struct ParserError {
     msg: String,
 }
 
+impl Display for ParserError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.msg)
+    }
+}
+
+impl Error for ParserError {
+}
+
 impl ParserError {
     pub fn new(msg: String) -> Self {
         Self { msg }
     }
-    
+
     pub fn eof() -> Self {
         Self { msg: "Unexpected end of input".to_owned() }
     }

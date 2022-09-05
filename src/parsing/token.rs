@@ -29,13 +29,19 @@ impl TokenStream {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Number {
     value: usize,
     base: u8
 }
 
-#[derive(Debug, Clone)]
+impl Number {
+    pub fn new(value: usize, base: u8) -> Self {
+        Self { value, base }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum Token {
     WhiteSpace(String),
     Identifier(String),

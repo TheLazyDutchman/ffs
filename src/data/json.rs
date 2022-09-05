@@ -3,7 +3,7 @@ use std::{slice::Iter, iter::Peekable, collections::HashMap};
 use crate::parsing::{AST, ParserError, token::{TokenStream, Token}};
 
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Data {
     List(Vec<Data>),
     Object(HashMap<String, Data>),
@@ -96,9 +96,9 @@ impl Data {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct JSON {
-    value: Data   
+    pub value: Data   
 }
 
 impl AST for JSON {
