@@ -1,70 +1,39 @@
-use std::{error::Error, fmt::{Display, Debug}};
-use std::fs;
-
-pub struct Parser {
-}
-
-pub trait Node: Debug {}
-
-#[derive(Debug)]
-pub struct Token {
-    value: char
-}
-
-impl Token {
-    pub fn new(value: char) -> Self {
-        Self { value }
-    }
-}
-
-impl Node for Token {}
-
-#[derive(Debug)]
-pub struct AST {
-    statements: Vec<Box<dyn Node>>
-}
-
-impl From<String> for AST {
-    fn from(value: String) -> Self {
-        let mut statements: Vec<Box<dyn Node>> = Vec::new();
-
-        for chr in value.chars() {
-            statements.push(Box::new(Token::new(chr)));
-        }
-
-        Self { statements }
-    }
-}
+pub mod token;
 
 #[derive(Debug)]
 pub struct ParserError {
-    filename: String
+    msg: String,
 }
 
-impl Display for ParserError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Error when parsing file: {}", self.filename)
+impl ParserError {
+    pub fn new(msg: String) -> Self {
+        Self { msg }
     }
-}
-
-impl Error for ParserError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        None
-    }
-
-    fn cause(&self) -> Option<&dyn Error> {
-        self.source()
+    
+    pub fn eof() -> Self {
+        Self { msg: "Unexpected end of input".to_owned() }
     }
 }
 
-impl Parser {
-    pub fn new() -> Self {
-        Self {}
-    }
+pub trait AST {
+    fn parse(filename: String) -> Result<Self, ParserError> 
+            where 
+            Self: Sized;
+}
 
-    pub fn parse(&self, path: &str) -> Result<AST, ParserError> {
-        let string = AST::from(fs::read_to_string(path).unwrap());
-        println!("{:?}", string);
-        todo!()
+pub trait Pass where Self::In: AST, Self::Out: AST {
+    type In;
+    type Out;
+}
+
+pub struct Chars {
+    chars: Vec<char>
+}
+
+impl AST for Chars {
+    fn parse(filename: String) -> Result<Self, ParserError> 
+            where 
+            Self: Sized {
+        Ok(Self { chars: filename.chars().collect() })
     }
 }

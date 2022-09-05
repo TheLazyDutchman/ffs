@@ -1,10 +1,13 @@
 #[cfg(test)]
 mod tests {
+    use std::fs;
+
+    use ffs::{data::json::JSON, parsing::AST};
+
     #[test]
     fn parse_json() {
-        let parser = ffs::parsing::Parser::new();
-        let json = parser.parse("tests/test.json").unwrap();
-        
-        println!("ast: {:?}", json);
+        let tokens = JSON::parse(fs::read_to_string("tests/test.json").unwrap()).unwrap();
+        println!("{:?}", tokens);
+        panic!();
     }
 }
