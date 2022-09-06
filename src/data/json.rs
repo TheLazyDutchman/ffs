@@ -2,16 +2,26 @@ use std::{slice::Iter, iter::Peekable, collections::HashMap};
 
 use crate::parsing::{AST, ParserError, token::{TokenStream, Token}};
 
+use super::{TreeData, Data};
 
 #[derive(Debug, PartialEq)]
-pub enum Data {
-    List(Vec<Data>),
-    Object(HashMap<String, Data>),
-    Immediate(Token)
+pub struct JSON {
+    pub value: Data   
 }
 
-impl Data {
-    pub fn parse(tokens: &mut Peekable<Iter<Token>>) -> Result<Self, ParserError> {
+impl AST for JSON {
+    fn parse(filename: String) -> Result<Self, ParserError> 
+            where 
+            Self: Sized {
+        let mut tokens = TokenStream::parse(filename)?;
+        tokens.remove_whitespace();
+
+        Ok(Self { value: Self::parse_data(&mut tokens.iter().peekable())? })
+    }
+}
+
+impl TreeData for JSON {
+    fn parse_data(tokens: &mut Peekable<Iter<Token>>) -> Result<super::Data, ParserError> {
         match tokens.peek().ok_or(ParserError::eof())? {
             Token::Char(ch) if *ch == '[' => {
                 Self::parse_list(tokens)
@@ -20,7 +30,7 @@ impl Data {
                 Self::parse_object(tokens)
             }
             Token::String(_) | Token::Number(_) => {
-                Ok(Self::Immediate(tokens.next().unwrap().clone()))
+                Ok(Data::Immediate(tokens.next().unwrap().clone()))
             }
             token => {
                 Err(ParserError::new(format!("Unexpected token '{:?}'", token).to_owned()))
@@ -28,13 +38,13 @@ impl Data {
         }
     }
 
-    fn parse_list(tokens: &mut Peekable<Iter<Token>>) -> Result<Self, ParserError> {
+    fn parse_list(tokens: &mut Peekable<Iter<Token>>) -> Result<super::Data, ParserError> {
         let mut list = Vec::new();
 
         tokens.next();
 
         while tokens.len() > 0  {
-            list.push(Data::parse(tokens)?);
+            list.push(Self::parse_data(tokens)?);
 
             if let Some(Token::Char(ch)) = tokens.peek() {
                 if *ch == ']' {
@@ -51,10 +61,10 @@ impl Data {
 
         tokens.next().ok_or(ParserError::new(format!("Expected ']' after list")))?;
 
-        Ok(Self::List(list))
+        Ok(Data::List(list))
     }
 
-    fn parse_object(tokens: &mut Peekable<Iter<Token>>) -> Result<Data, ParserError> {
+    fn parse_object(tokens: &mut Peekable<Iter<Token>>) -> Result<super::Data, ParserError> {
         let mut map = HashMap::new();
 
         tokens.next();
@@ -75,7 +85,7 @@ impl Data {
                 token => return Err(ParserError::new(format!("Expected ':' but got '{:?}'", token)))
             }
 
-            let value = Data::parse(tokens)?;
+            let value = Self::parse_data(tokens)?;
 
             map.insert(name, value);
             
@@ -92,22 +102,6 @@ impl Data {
 
         tokens.next().ok_or(ParserError::new("Expected '}' after object".to_owned()))?;
 
-        Ok(Self::Object(map))
-    }
-}
-
-#[derive(Debug, PartialEq)]
-pub struct JSON {
-    pub value: Data   
-}
-
-impl AST for JSON {
-    fn parse(filename: String) -> Result<Self, ParserError> 
-            where 
-            Self: Sized {
-        let mut tokens = TokenStream::parse(filename)?;
-        tokens.remove_whitespace();
-
-        Ok(Self { value: Data::parse(&mut tokens.iter().peekable())? })
+        Ok(Data::Object(map))
     }
 }

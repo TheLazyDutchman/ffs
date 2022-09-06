@@ -80,7 +80,7 @@ impl Token {
             string.push(*chars.next().unwrap());
         }
 
-        if chars.peek().unwrap() == &&'x' || chars.peek().unwrap() == &&'b' {
+        if chars.peek().is_some() && (chars.peek().unwrap() == &&'x' || chars.peek().unwrap() == &&'b') {
             todo!()
         }
 

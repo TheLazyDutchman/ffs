@@ -1,0 +1,8 @@
+---
+users:
+  - first:
+    name: "test"
+    age: 10 
+  - second:
+    name: "test2"
+    age: 11
