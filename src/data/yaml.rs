@@ -6,91 +6,91 @@ use super::{Data, TreeData};
 
 #[derive(Debug, PartialEq)]
 pub struct YAML {
-    pub value: Data
+	pub value: Data
 }
 
 impl AST for YAML {
-    fn parse(filename: String) -> Result<Self, ParserError> 
-            where 
-            Self: Sized {
-        let mut tokens = TokenStream::parse(filename)?;
-        tokens
-            .keywords(&["true", "false"])
-            .operators(&["---", "-", ":"])
-            .remove_whitespace();
+	fn parse(filename: String) -> Result<Self, ParserError> 
+			where 
+			Self: Sized {
+		let mut tokens = TokenStream::parse(filename)?;
+		tokens
+			.keywords(&["true", "false"])
+			.operators(&["---", "-", ":"])
+			.remove_whitespace();
 
-        let mut tokens = tokens.iter().peekable();
+		let mut tokens = tokens.iter().peekable();
 
-        match tokens.peek() {
-            Some(Token::Operator(value)) if *value == "---".to_owned() => {
-                tokens.next();
-            }
-            token => return Err(ParserError::new(format!("Expected yaml file to start with '---', got: {token:?}")))
-        }
+		match tokens.peek() {
+			Some(Token::Operator(value)) if *value == "---".to_owned() => {
+				tokens.next();
+			}
+			token => return Err(ParserError::new(format!("Expected yaml file to start with '---', got: {token:?}")))
+		}
 
-        Ok(Self { value: Self::parse_data(&mut tokens)? })
-    }
+		Ok(Self { value: Self::parse_data(&mut tokens)? })
+	}
 }
 
 impl TreeData for YAML {
-    fn parse_data(tokens: &mut Peekable<Iter<Token>>) -> Result<Data, ParserError> {
-        match tokens.peek().ok_or(ParserError::eof())? {
-            Token::Operator(op) if *op == "-" => {
-                Self::parse_list(tokens)
-            }
-            Token::Identifier(_) => {
-                Self::parse_object(tokens)
-            }
-            Token::String(_) | Token::Number(_) | Token::Keyword(_) => {
-                Ok(Data::Immediate(tokens.next().unwrap().clone()))
-            }
-            token => {
-                Err(ParserError::new(format!("Unexpected token '{:?}'", token).to_owned()))
-            }
-        }
-    }
+	fn parse_data(tokens: &mut Peekable<Iter<Token>>) -> Result<Data, ParserError> {
+		match tokens.peek().ok_or(ParserError::eof())? {
+			Token::Operator(op) if *op == "-" => {
+				Self::parse_list(tokens)
+			}
+			Token::Identifier(_) => {
+				Self::parse_object(tokens)
+			}
+			Token::String(_) | Token::Number(_) | Token::Keyword(_) => {
+				Ok(Data::Immediate(tokens.next().unwrap().clone()))
+			}
+			token => {
+				Err(ParserError::new(format!("Unexpected token '{:?}'", token).to_owned()))
+			}
+		}
+	}
 
-    fn parse_list(tokens: &mut Peekable<Iter<Token>>) -> Result<Data, ParserError> {
-        let mut values = Vec::new();
+	fn parse_list(tokens: &mut Peekable<Iter<Token>>) -> Result<Data, ParserError> {
+		let mut values = Vec::new();
 
-        loop {
-            match tokens.peek() {
-                Some(Token::Operator(op)) if *op == "-" => {
-                    tokens.next();
-                }
-                _ => break
-            }
+		loop {
+			match tokens.peek() {
+				Some(Token::Operator(op)) if *op == "-" => {
+					tokens.next();
+				}
+				_ => break
+			}
 
-            values.push(Self::parse_data(tokens)?);
-        }
+			values.push(Self::parse_data(tokens)?);
+		}
 
-        Ok( Data::List(values) )
-    }
+		Ok( Data::List(values) )
+	}
 
-    fn parse_object(tokens: &mut Peekable<Iter<Token>>) -> Result<Data, ParserError> {
-        let mut map = HashMap::new();
+	fn parse_object(tokens: &mut Peekable<Iter<Token>>) -> Result<Data, ParserError> {
+		let mut map = HashMap::new();
 
-        loop {
-            let name = match tokens.peek() {
-                Some(Token::Identifier(value)) => {
-                    tokens.next();
-                    value.to_owned()
-                }
-                _ => break
-            };
+		loop {
+			let name = match tokens.peek() {
+				Some(Token::Identifier(value)) => {
+					tokens.next();
+					value.to_owned()
+				}
+				_ => break
+			};
 
-            match tokens.peek() {
-                Some(Token::Operator(op)) if *op == ":" => {
-                    tokens.next();
-                }
-                token => return Err(ParserError::new(format!("Expected ':' but got '{:?}'", token)))
-            }
+			match tokens.peek() {
+				Some(Token::Operator(op)) if *op == ":" => {
+					tokens.next();
+				}
+				token => return Err(ParserError::new(format!("Expected ':' but got '{:?}'", token)))
+			}
 
-            let value = Self::parse_data(tokens)?;
+			let value = Self::parse_data(tokens)?;
 
-            map.insert(name, value);
-        }
+			map.insert(name, value);
+		}
 
-        Ok(Data::Object(map))
-    }
+		Ok(Data::Object(map))
+	}
 }
