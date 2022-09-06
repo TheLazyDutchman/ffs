@@ -12,7 +12,7 @@ impl TokenStream {
         self.tokens.iter()
     }
 
-    pub fn remove_whitespace(&mut self) -> &Self {
+    pub fn remove_whitespace(&mut self) -> &mut Self {
         let mut tokens = Vec::new();
 
         for token in self.tokens.iter() {
@@ -20,6 +20,62 @@ impl TokenStream {
                 Token::WhiteSpace(_) => {}
                 _ => {
                     tokens.push(token.clone());
+                }
+            }
+        }
+
+        self.tokens = tokens;
+        self
+    }
+
+    pub fn keywords(&mut self, keywords: &[String]) -> &mut Self {
+        self.tokens = self.tokens.iter().map(|t| match t {
+            Token::Identifier(value) if keywords.contains(value) => {
+                Token::Keyword(value.to_owned())
+            }
+            token => token.to_owned()
+        }).collect();
+        self
+    }
+
+    pub fn operators(&mut self, operators: &[String]) -> &mut Self {
+        let mut tokens = Vec::new();
+
+        let mut old_tokens = self.tokens.iter().peekable();
+
+        let mut value = String::new();
+        while old_tokens.len() > 0 {
+            match old_tokens.peek().unwrap() {
+                Token::Char(ch) => {
+                    old_tokens.next();
+                    let mut test_value = value.clone();
+                    test_value.push(*ch);
+                    let matches: Vec<&String> = operators.iter().filter(|op| op.starts_with(&test_value)).collect();
+                    if matches.len() == 1 && matches[0].len() == test_value.len() {
+                        tokens.push(Token::Operator(test_value));
+                        value = String::new();
+                        continue;
+                    }
+
+                    if matches.len() == 0 {
+                        if test_value.len() > 1 {
+                            tokens.push(Token::Operator(value));
+                        } else {
+                            tokens.push(Token::Char(*ch));
+                        }
+
+                        value = String::new();
+                        continue;
+                    }
+                    value = test_value;
+                }
+                _ => {
+                    if value.len() > 0 {
+                        tokens.push(Token::Operator(value));
+                        value = String::new();
+                    }
+                    
+                    tokens.push(old_tokens.next().unwrap().clone());
                 }
             }
         }
@@ -47,7 +103,9 @@ pub enum Token {
     Identifier(String),
     String(String),
     Number(Number),
-    Char(char)
+    Char(char),
+    Keyword(String),
+    Operator(String)
 }
 
 impl Token {

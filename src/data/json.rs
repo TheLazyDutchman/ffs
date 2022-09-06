@@ -14,7 +14,10 @@ impl AST for JSON {
             where 
             Self: Sized {
         let mut tokens = TokenStream::parse(filename)?;
-        tokens.remove_whitespace();
+        tokens
+            .keywords(&["true".to_owned(), "false".to_owned()])
+            .operators(&["{".to_owned(), "}".to_owned(), "[".to_owned(), "]".to_owned(), ":".to_owned(), ",".to_owned()])
+            .remove_whitespace();
 
         Ok(Self { value: Self::parse_data(&mut tokens.iter().peekable())? })
     }
@@ -23,10 +26,10 @@ impl AST for JSON {
 impl TreeData for JSON {
     fn parse_data(tokens: &mut Peekable<Iter<Token>>) -> Result<super::Data, ParserError> {
         match tokens.peek().ok_or(ParserError::eof())? {
-            Token::Char(ch) if *ch == '[' => {
+            Token::Operator(op) if *op == "[" => {
                 Self::parse_list(tokens)
             }
-            Token::Char(ch) if *ch == '{' => {
+            Token::Operator(op) if *op == "{" => {
                 Self::parse_object(tokens)
             }
             Token::String(_) | Token::Number(_) => {
@@ -46,13 +49,13 @@ impl TreeData for JSON {
         while tokens.len() > 0  {
             list.push(Self::parse_data(tokens)?);
 
-            if let Some(Token::Char(ch)) = tokens.peek() {
-                if *ch == ']' {
+            if let Some(Token::Operator(op)) = tokens.peek() {
+                if *op == "]" {
                     break;
                 }
 
-                if *ch != ',' {
-                    return Err(ParserError::new(format!("Expected ',' in list, but found '{}'.", ch).to_owned()))
+                if *op != "," {
+                    return Err(ParserError::new(format!("Expected ',' in list, but found '{}'.", op).to_owned()))
                 }
                 
                 tokens.next();
@@ -79,7 +82,7 @@ impl TreeData for JSON {
             };
 
             match tokens.peek() {
-                Some(Token::Char(ch)) if *ch == ':' => {
+                Some(Token::Operator(op)) if *op == ":" => {
                     tokens.next();
                 }
                 token => return Err(ParserError::new(format!("Expected ':' but got '{:?}'", token)))
@@ -90,10 +93,10 @@ impl TreeData for JSON {
             map.insert(name, value);
             
             match tokens.peek() {
-                Some(Token::Char(ch)) if *ch == '}' => {
+                Some(Token::Operator(op)) if *op == "}" => {
                     break;
                 }
-                Some(Token::Char(ch)) if *ch == ',' => {
+                Some(Token::Operator(op)) if *op == "," => {
                     tokens.next();
                 }
                 token => return Err(ParserError::new(format!("Expected ',' but got '{:?}'", token)))
