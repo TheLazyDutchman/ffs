@@ -2,7 +2,7 @@
 mod tests {
     use std::{fs, collections::HashMap};
 
-    use ffs::{data::{json::{JSON}, yaml::YAML, Data}, parsing::{AST, token::{Token, Number}}};
+    use ffs::{data::{json::{JSON}, yaml::YAML, Data, tsv::TSV, Row, csv::CSV}, parsing::{AST, token::{Token, Number}}};
 
     #[test]
     fn parse_json() {
@@ -28,5 +28,25 @@ mod tests {
                 ]))
             ]))
         ])) });
+    }
+
+    #[test]
+    fn parse_tsv() {
+        let tsv = TSV::parse(fs::read_to_string("tests/test.tsv").unwrap()).unwrap();
+        assert_eq!(tsv, TSV { values: vec![
+            Row{ values: vec![Token::Identifier("name".to_owned()), Token::Identifier("age".to_owned())]},
+            Row{ values: vec![Token::Identifier("test".to_owned()), Token::Number(Number::new(10, 10))]},
+            Row{ values: vec![Token::Identifier("test2".to_owned()), Token::Number(Number::new(11, 10))]}
+        ]});
+    }
+
+    #[test]
+    fn parse_csv() {
+        let csv = CSV::parse(fs::read_to_string("tests/test.csv").unwrap()).unwrap();
+        assert_eq!(csv, CSV { values: vec![
+            Row{ values: vec![Token::Identifier("name".to_owned()), Token::Identifier("age".to_owned())]},
+            Row{ values: vec![Token::Identifier("test".to_owned()), Token::Number(Number::new(10, 10))]},
+            Row{ values: vec![Token::Identifier("test2".to_owned()), Token::Number(Number::new(11, 10))]}
+        ]});
     }
 }

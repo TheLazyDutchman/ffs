@@ -15,8 +15,8 @@ impl AST for JSON {
             Self: Sized {
         let mut tokens = TokenStream::parse(filename)?;
         tokens
-            .keywords(&["true".to_owned(), "false".to_owned()])
-            .operators(&["{".to_owned(), "}".to_owned(), "[".to_owned(), "]".to_owned(), ":".to_owned(), ",".to_owned()])
+            .keywords(&["true", "false"])
+            .operators(&["{", "}", "[", "]", ":", ","])
             .remove_whitespace();
 
         Ok(Self { value: Self::parse_data(&mut tokens.iter().peekable())? })
@@ -24,7 +24,7 @@ impl AST for JSON {
 }
 
 impl TreeData for JSON {
-    fn parse_data(tokens: &mut Peekable<Iter<Token>>) -> Result<super::Data, ParserError> {
+    fn parse_data(tokens: &mut Peekable<Iter<Token>>) -> Result<Data, ParserError> {
         match tokens.peek().ok_or(ParserError::eof())? {
             Token::Operator(op) if *op == "[" => {
                 Self::parse_list(tokens)
@@ -41,7 +41,7 @@ impl TreeData for JSON {
         }
     }
 
-    fn parse_list(tokens: &mut Peekable<Iter<Token>>) -> Result<super::Data, ParserError> {
+    fn parse_list(tokens: &mut Peekable<Iter<Token>>) -> Result<Data, ParserError> {
         let mut list = Vec::new();
 
         tokens.next();
@@ -67,7 +67,7 @@ impl TreeData for JSON {
         Ok(Data::List(list))
     }
 
-    fn parse_object(tokens: &mut Peekable<Iter<Token>>) -> Result<super::Data, ParserError> {
+    fn parse_object(tokens: &mut Peekable<Iter<Token>>) -> Result<Data, ParserError> {
         let mut map = HashMap::new();
 
         tokens.next();

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, slice::Iter, iter::Peekable};
 
 use crate::parsing::{AST, token::{Token, TokenStream}, ParserError};
 
@@ -10,13 +10,13 @@ pub struct YAML {
 }
 
 impl AST for YAML {
-    fn parse(filename: String) -> Result<Self, crate::parsing::ParserError> 
+    fn parse(filename: String) -> Result<Self, ParserError> 
             where 
             Self: Sized {
         let mut tokens = TokenStream::parse(filename)?;
         tokens
-            .keywords(&["true".to_owned(), "false".to_owned()])
-            .operators(&["---".to_owned(), "-".to_owned(), ":".to_owned()])
+            .keywords(&["true", "false"])
+            .operators(&["---", "-", ":"])
             .remove_whitespace();
 
         let mut tokens = tokens.iter().peekable();
@@ -33,7 +33,7 @@ impl AST for YAML {
 }
 
 impl TreeData for YAML {
-    fn parse_data(tokens: &mut std::iter::Peekable<std::slice::Iter<Token>>) -> Result<Data, crate::parsing::ParserError> {
+    fn parse_data(tokens: &mut Peekable<Iter<Token>>) -> Result<Data, ParserError> {
         match tokens.peek().ok_or(ParserError::eof())? {
             Token::Operator(op) if *op == "-" => {
                 Self::parse_list(tokens)
@@ -50,7 +50,7 @@ impl TreeData for YAML {
         }
     }
 
-    fn parse_list(tokens: &mut std::iter::Peekable<std::slice::Iter<Token>>) -> Result<Data, crate::parsing::ParserError> {
+    fn parse_list(tokens: &mut Peekable<Iter<Token>>) -> Result<Data, ParserError> {
         let mut values = Vec::new();
 
         loop {
@@ -67,7 +67,7 @@ impl TreeData for YAML {
         Ok( Data::List(values) )
     }
 
-    fn parse_object(tokens: &mut std::iter::Peekable<std::slice::Iter<Token>>) -> Result<Data, crate::parsing::ParserError> {
+    fn parse_object(tokens: &mut Peekable<Iter<Token>>) -> Result<Data, ParserError> {
         let mut map = HashMap::new();
 
         loop {

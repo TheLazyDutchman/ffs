@@ -28,9 +28,9 @@ impl TokenStream {
         self
     }
 
-    pub fn keywords(&mut self, keywords: &[String]) -> &mut Self {
+    pub fn keywords(&mut self, keywords: &[&str]) -> &mut Self {
         self.tokens = self.tokens.iter().map(|t| match t {
-            Token::Identifier(value) if keywords.contains(value) => {
+            Token::Identifier(value) if keywords.contains(&value.as_str()) => {
                 Token::Keyword(value.to_owned())
             }
             token => token.to_owned()
@@ -38,7 +38,7 @@ impl TokenStream {
         self
     }
 
-    pub fn operators(&mut self, operators: &[String]) -> &mut Self {
+    pub fn operators(&mut self, operators: &[&str]) -> &mut Self {
         let mut tokens = Vec::new();
 
         let mut old_tokens = self.tokens.iter().peekable();
@@ -50,7 +50,7 @@ impl TokenStream {
                     old_tokens.next();
                     let mut test_value = value.clone();
                     test_value.push(*ch);
-                    let matches: Vec<&String> = operators.iter().filter(|op| op.starts_with(&test_value)).collect();
+                    let matches: Vec<&&str> = operators.iter().filter(|op| op.starts_with(&test_value)).collect();
                     if matches.len() == 1 && matches[0].len() == test_value.len() {
                         tokens.push(Token::Operator(test_value));
                         value = String::new();
@@ -74,7 +74,7 @@ impl TokenStream {
                         tokens.push(Token::Operator(value));
                         value = String::new();
                     }
-                    
+
                     tokens.push(old_tokens.next().unwrap().clone());
                 }
             }
