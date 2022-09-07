@@ -1,6 +1,6 @@
 use std::{slice::Iter, iter::Peekable, collections::HashMap};
 
-use crate::parsing::{AST, ParserError, token::{TokenStream, Token}};
+use crate::parsing::{AST, ParserError, token::{Token}};
 
 use super::{TreeData, Data};
 
@@ -10,17 +10,22 @@ pub struct JSON {
 }
 
 impl AST for JSON {
-	fn parse(filename: String) -> Result<Self, ParserError> 
-			where 
-			Self: Sized {
-		let mut tokens = TokenStream::parse(filename)?;
-		tokens
-			.keywords(&["true", "false"])
-			.operators(&["{", "}", "[", "]", ":", ","])
-			.remove_whitespace();
+    fn parse_tokens(tokens: &mut Peekable<Iter<Token>>) -> Result<Self, ParserError>
+			where Self: Sized {
+        Ok(Self {value: Self::parse_data(tokens)?})
+    }
 
-		Ok(Self { value: Self::parse_data(&mut tokens.iter().peekable())? })
-	}
+    fn keywords() -> &'static [&'static str] {
+        &["true", "false"]
+    }
+
+    fn operators() -> &'static [&'static str] {
+        &["{","}",",","[","]",":"]
+    }
+
+    fn ignore_whitespace() -> bool {
+        true
+    }
 }
 
 impl TreeData for JSON {

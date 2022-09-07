@@ -1,6 +1,4 @@
-use std::{slice::Iter, iter::Peekable};
-
-use super::{AST, Chars, ParserError};
+use std::{slice::Iter, iter::Peekable, str::Chars};
 
 #[derive(Debug)]
 pub struct TokenStream {
@@ -109,36 +107,36 @@ pub enum Token {
 }
 
 impl Token {
-	fn lex_whitespace(chars: &mut Peekable<Iter<char>>) -> Token {
+	fn lex_whitespace(chars: &mut Peekable<Chars>) -> Token {
 		let mut value = String::new();
 
-		while chars.len() > 0 && chars.peek().unwrap().is_whitespace() {
-			value.push(*chars.next().unwrap());
+		while chars.peek().is_some() && chars.peek().unwrap().is_whitespace() {
+			value.push(chars.next().unwrap());
 		}
 
 		Token::WhiteSpace(value)
 	}
 
-	fn lex_identifier(chars: &mut Peekable<Iter<char>>) -> Token {
+	fn lex_identifier(chars: &mut Peekable<Chars>) -> Token {
 		let mut value = String::new();
 
-		while chars.len() > 0 &&
+		while chars.peek().is_some() &&
 			(chars.peek().unwrap().is_alphanumeric() ||
-			chars.peek().unwrap() == &&'_') {
-				value.push(*chars.next().unwrap());
+			chars.peek().unwrap() == &'_') {
+				value.push(chars.next().unwrap());
 		}
 
 		Token::Identifier(value)
 	}
 
-	fn lex_number(chars: &mut Peekable<Iter<char>>) -> Token {
+	fn lex_number(chars: &mut Peekable<Chars>) -> Token {
 		let mut string = String::new();
 
-		while chars.len() > 0 && chars.peek().unwrap().is_numeric() {
-			string.push(*chars.next().unwrap());
+		while chars.peek().is_some() && chars.peek().unwrap().is_numeric() {
+			string.push(chars.next().unwrap());
 		}
 
-		if chars.peek().is_some() && (chars.peek().unwrap() == &&'x' || chars.peek().unwrap() == &&'b') {
+		if chars.peek().is_some() && (chars.peek().unwrap() == &'x' || chars.peek().unwrap() == &'b') {
 			todo!()
 		}
 
@@ -148,56 +146,53 @@ impl Token {
 		Token::Number(Number{value, base})
 	}
 
-	fn lex_string(chars: &mut Peekable<Iter<char>>) -> Token {
+	fn lex_string(chars: &mut Peekable<Chars>) -> Token {
 		let ch = chars.next().unwrap();
 
-		let mut value = String::from(*ch);
+		let mut value = String::from(ch);
 
 		while value.len() > 0 {
-			if chars.peek().unwrap() == &&'\\' {
-				value.push(*chars.next().unwrap());
+			if chars.peek().unwrap() == &'\\' {
+				value.push(chars.next().unwrap());
 			} else if chars.peek().unwrap() == &ch {
 				break;
 			}
 
-			value.push(*chars.next().unwrap());
+			value.push(chars.next().unwrap());
 		}
 
-		value.push(*chars.next().unwrap());
+		value.push(chars.next().unwrap());
 
 		Self::String(value)
 	}
 }
 
-impl AST for TokenStream {
-	fn parse(filename: String) -> Result<Self, ParserError> 
-			where 
-			Self: Sized {
-		let chars = Chars::parse(filename)?;
-		let mut chars = chars.chars.iter().peekable();
+impl From<String> for TokenStream {
+    fn from(value: String) -> Self {
+		let mut chars = value.chars().peekable();
 		let mut tokens = Vec::new();
 
-		while chars.len() > 0 {
+		while chars.peek().is_some() {
 			match chars.peek() {
 				Some(ch) if ch.is_whitespace() => {
 					tokens.push(Token::lex_whitespace(&mut chars));
 				}
-				Some(&&ch) if ch.is_alphabetic() || ch == '_' => {
+				Some(&ch) if ch.is_alphabetic() || ch == '_' => {
 					tokens.push(Token::lex_identifier(&mut chars));
 				}
-				Some(&&ch) if ch == '"' || ch == '\'' => {
+				Some(&ch) if ch == '"' || ch == '\'' => {
 					tokens.push(Token::lex_string(&mut chars));
 				}
 				Some(ch) if ch.is_numeric() => {
 					tokens.push(Token::lex_number(&mut chars));
 				}
 				Some(_) => {
-					tokens.push(Token::Char(*chars.next().unwrap()));
+					tokens.push(Token::Char(chars.next().unwrap()));
 				}
 				None => {}
 			}
 		}
 
-		Ok(Self { tokens })
-	}
+		Self{ tokens }
+    }
 }

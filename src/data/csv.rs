@@ -1,6 +1,6 @@
 use std::{slice::Iter, iter::Peekable};
 
-use crate::parsing::{AST, token::{TokenStream, Token}, ParserError};
+use crate::parsing::{AST, token::{Token}, ParserError};
 
 use super::{Row, GridData};
 
@@ -10,24 +10,28 @@ pub struct CSV {
 }
 
 impl AST for CSV {
-	fn parse(filename: String) -> Result<Self, ParserError> 
-			where 
-			Self: Sized {
-		let mut tokens = TokenStream::parse(filename)?;
-		tokens
-			.keywords(&["true", "false"])
-			.operators(&[","]);
-
-		let mut tokens = tokens.iter().peekable();
-
+	fn parse_tokens(tokens: &mut Peekable<Iter<Token>>) -> Result<Self, ParserError>
+			where Self: Sized {
 		let mut rows = Vec::new();
 
 		while tokens.len() > 0 {
-			rows.push(Self::parse_row(&mut tokens)?);
+			rows.push(Self::parse_row(tokens)?);
 		}
-		
+
 		Ok( Self { values: rows } )
-	}
+    }
+
+	fn keywords() -> &'static [&'static str] {
+		&["true", "false"]
+    }
+
+	fn operators() -> &'static [&'static str] {
+		&[","]
+    }
+
+	fn ignore_whitespace() -> bool {
+		false
+    }
 }
 
 impl GridData for CSV {

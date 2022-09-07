@@ -1,4 +1,6 @@
-use std::{error::Error, fmt::Display};
+use std::{error::Error, fmt::Display, iter::Peekable, slice::Iter};
+
+use self::token::{Token, TokenStream};
 
 pub mod token;
 
@@ -27,24 +29,27 @@ impl ParserError {
 }
 
 pub trait AST {
-	fn parse(filename: String) -> Result<Self, ParserError> 
-			where 
-			Self: Sized;
-}
-
-pub trait Pass where Self::In: AST, Self::Out: AST {
-	type In;
-	type Out;
-}
-
-pub struct Chars {
-	chars: Vec<char>
-}
-
-impl AST for Chars {
-	fn parse(filename: String) -> Result<Self, ParserError> 
+	fn parse(value: String) -> Result<Self, ParserError> 
 			where 
 			Self: Sized {
-		Ok(Self { chars: filename.chars().collect() })
+		let mut tokens = TokenStream::from(value);
+		tokens
+			.keywords(Self::keywords())
+			.operators(Self::operators());
+		
+		if Self::ignore_whitespace() {
+			tokens.remove_whitespace();
+		}
+
+		let mut tokens = tokens.iter().peekable();
+
+		Self::parse_tokens(&mut tokens)
 	}
+
+	fn parse_tokens(tokens: &mut Peekable<Iter<Token>>) -> Result<Self, ParserError>
+			where Self: Sized;
+	
+	fn keywords() -> &'static [&'static str];
+	fn operators() -> &'static [&'static str];
+	fn ignore_whitespace() -> bool;
 }

@@ -1,6 +1,6 @@
 use std::{collections::HashMap, slice::Iter, iter::Peekable};
 
-use crate::parsing::{AST, token::{Token, TokenStream}, ParserError};
+use crate::parsing::{AST, token::{Token}, ParserError};
 
 use super::{Data, TreeData};
 
@@ -10,26 +10,31 @@ pub struct YAML {
 }
 
 impl AST for YAML {
-	fn parse(filename: String) -> Result<Self, ParserError> 
-			where 
-			Self: Sized {
-		let mut tokens = TokenStream::parse(filename)?;
-		tokens
-			.keywords(&["true", "false"])
-			.operators(&["---", "-", ":"])
-			.remove_whitespace();
-
-		let mut tokens = tokens.iter().peekable();
-
+	fn parse_tokens(tokens: &mut Peekable<Iter<Token>>) -> Result<Self, ParserError>
+			where Self: Sized {
+		
 		match tokens.peek() {
-			Some(Token::Operator(value)) if *value == "---".to_owned() => {
+			Some(Token::Operator(op)) if op == "---" => {
 				tokens.next();
 			}
-			token => return Err(ParserError::new(format!("Expected yaml file to start with '---', got: {token:?}")))
+			token => {
+				return Err(ParserError::new(format!("Expected '---' at the start of a yaml file, got '{:?}'", token)))
+			}
 		}
+        Ok(Self{value: Self::parse_data(tokens)?})
+    }
 
-		Ok(Self { value: Self::parse_data(&mut tokens)? })
-	}
+	fn keywords() -> &'static [&'static str] {
+        &["true", "false"]
+    }
+
+	fn operators() -> &'static [&'static str] {
+	   &["---", "-", ":"]
+    }
+
+	fn ignore_whitespace() -> bool {
+		  true
+    }
 }
 
 impl TreeData for YAML {
