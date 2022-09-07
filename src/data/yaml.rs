@@ -1,6 +1,6 @@
 use std::{collections::HashMap, slice::Iter, iter::Peekable};
 
-use crate::parsing::{AST, token::{Token}, ParserError};
+use crate::{parsing::{AST, token::{Token}, ParserError}, expect, expect_break};
 
 use super::{Data, TreeData};
 
@@ -12,15 +12,7 @@ pub struct YAML {
 impl AST for YAML {
 	fn parse_tokens(tokens: &mut Peekable<Iter<Token>>) -> Result<Self, ParserError>
 			where Self: Sized {
-		
-		match tokens.peek() {
-			Some(Token::Operator(op)) if op == "---" => {
-				tokens.next();
-			}
-			token => {
-				return Err(ParserError::new(format!("Expected '---' at the start of a yaml file, got '{:?}'", token)))
-			}
-		}
+		expect!(tokens, Token::Operator(op), op, "---", "Expected '---' at the start of a yaml file, got '{:?}");
         Ok(Self{value: Self::parse_data(tokens)?})
     }
 
@@ -59,12 +51,7 @@ impl TreeData for YAML {
 		let mut values = Vec::new();
 
 		loop {
-			match tokens.peek() {
-				Some(Token::Operator(op)) if *op == "-" => {
-					tokens.next();
-				}
-				_ => break
-			}
+			expect_break!(tokens, Token::Operator(op), op, "-");
 
 			values.push(Self::parse_data(tokens)?);
 		}
@@ -76,20 +63,9 @@ impl TreeData for YAML {
 		let mut map = HashMap::new();
 
 		loop {
-			let name = match tokens.peek() {
-				Some(Token::Identifier(value)) => {
-					tokens.next();
-					value.to_owned()
-				}
-				_ => break
-			};
+			let name = expect_break!(tokens, Token::Identifier(value), value).to_owned();
 
-			match tokens.peek() {
-				Some(Token::Operator(op)) if *op == ":" => {
-					tokens.next();
-				}
-				token => return Err(ParserError::new(format!("Expected ':' but got '{:?}'", token)))
-			}
+			expect!(tokens, Token::Operator(op), op, ":", "Expected ':' but got '{:?}'");
 
 			let value = Self::parse_data(tokens)?;
 

@@ -53,3 +53,55 @@ pub trait AST {
 	fn operators() -> &'static [&'static str];
 	fn ignore_whitespace() -> bool;
 }
+
+#[macro_export]
+macro_rules! expect {
+	($list: ident, $mtch: pat, $i: ident, $value: expr, $msg: literal) => {
+		match $list.peek() {
+			Some($mtch) if $i == $value => {
+				$list.next();
+				$i
+			}
+			token => return Err(ParserError::new(format!($msg, token)))
+		}
+	};
+	($list: ident, $mtch: pat, $value: ident, $msg: literal) => {
+		match $list.peek() {
+			Some($mtch) => {
+				$list.next();
+				$value
+			}
+			token => return Err(ParserError::new(format!($msg, token)))
+		}
+	};
+	($list: ident, $mtch: pat, $msg: literal) => {
+		match $list.peek() {
+			Some($mtch) => {
+				$list.next().unwrap()
+			}
+			token => return Err(ParserError::new(format!($msg, token)))
+		}
+	};
+}
+
+#[macro_export]
+macro_rules! expect_break {
+	($list: ident, $mtch: pat, $i: ident, $value: expr) => {
+		match $list.peek() {
+			Some($mtch) if $i == $value => {
+				$list.next();
+				$i
+			}
+			_ => break
+		}
+	};
+	($list: ident, $mtch: pat, $value: ident) => {
+		match $list.peek() {
+			Some($mtch) => {
+				$list.next();
+				$value
+			}
+			_ => break
+		}
+	};
+}

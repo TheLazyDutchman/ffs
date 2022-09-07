@@ -1,6 +1,6 @@
 use std::{slice::Iter, iter::Peekable, collections::HashMap};
 
-use crate::parsing::{AST, ParserError, token::{Token}};
+use crate::{parsing::{AST, ParserError, token::Token}, expect};
 
 use super::{TreeData, Data};
 
@@ -78,20 +78,9 @@ impl TreeData for JSON {
 		tokens.next();
 
 		while tokens.len() > 0 {
-			let name = match tokens.peek() {
-				Some(Token::String(value)) => {
-					tokens.next();
-					value.to_owned()
-				}
-				token => return Err(ParserError::new(format!("Expected property name, but got {:?}", token)))
-			};
+			let name = expect!(tokens, Token::String(value), value, "Expected property name, but got {:?}").to_owned();
 
-			match tokens.peek() {
-				Some(Token::Operator(op)) if *op == ":" => {
-					tokens.next();
-				}
-				token => return Err(ParserError::new(format!("Expected ':' but got '{:?}'", token)))
-			}
+			expect!(tokens, Token::Operator(op), op, ":", "Expected ':' but got '{:?}'");
 
 			let value = Self::parse_data(tokens)?;
 
