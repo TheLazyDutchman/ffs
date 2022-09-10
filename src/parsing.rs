@@ -56,9 +56,9 @@ pub trait AST {
 
 #[macro_export]
 macro_rules! expect {
-	($list: ident, $mtch: pat, $i: ident, $value: expr, $msg: literal) => {
+	($list: ident, $mtch: pat, $i: ident, $cmp: expr, $msg: literal) => {
 		match $list.peek() {
-			Some($mtch) if $i == $value => {
+			Some($mtch) if $cmp => {
 				$list.next();
 				$i
 			}
@@ -86,9 +86,9 @@ macro_rules! expect {
 
 #[macro_export]
 macro_rules! expect_break {
-	($list: ident, $mtch: pat, $i: ident, $value: expr) => {
+	($list: ident, $mtch: pat, $i: ident, $cmp: expr) => {
 		match $list.peek() {
-			Some($mtch) if $i == $value => {
+			Some($mtch) if $cmp => {
 				$list.next();
 				$i
 			}

@@ -12,7 +12,7 @@ pub struct YAML {
 impl AST for YAML {
 	fn parse_tokens(tokens: &mut Peekable<Iter<Token>>) -> Result<Self, ParserError>
 			where Self: Sized {
-		expect!(tokens, Token::Operator(op), op, "---", "Expected '---' at the start of a yaml file, got '{:?}");
+		expect!(tokens, Token::Operator(op), op, op == "---", "Expected '---' at the start of a yaml file, got '{:?}");
         Ok(Self{value: Self::parse_data(tokens)?})
     }
 
@@ -51,7 +51,7 @@ impl TreeData for YAML {
 		let mut values = Vec::new();
 
 		loop {
-			expect_break!(tokens, Token::Operator(op), op, "-");
+			expect_break!(tokens, Token::Operator(op), op, op == "-");
 
 			values.push(Self::parse_data(tokens)?);
 		}
@@ -65,7 +65,7 @@ impl TreeData for YAML {
 		loop {
 			let name = expect_break!(tokens, Token::Identifier(value), value).to_owned();
 
-			expect!(tokens, Token::Operator(op), op, ":", "Expected ':' but got '{:?}'");
+			expect!(tokens, Token::Operator(op), op, op == ":", "Expected ':' but got '{:?}'");
 
 			let value = Self::parse_data(tokens)?;
 

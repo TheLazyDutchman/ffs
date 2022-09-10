@@ -80,7 +80,7 @@ impl TreeData for JSON {
 		while tokens.len() > 0 {
 			let name = expect!(tokens, Token::String(value), value, "Expected property name, but got {:?}").to_owned();
 
-			expect!(tokens, Token::Operator(op), op, ":", "Expected ':' but got '{:?}'");
+			expect!(tokens, Token::Operator(op), op, op == ":", "Expected ':' but got '{:?}'");
 
 			let value = Self::parse_data(tokens)?;
 
