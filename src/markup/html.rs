@@ -1,6 +1,8 @@
+#![allow(unused)]
 use std::iter::Peekable;
 
 use crate::{tree::{Tree, TreeTokenStream, TreeToken}, parsing::{ParserError, token::Token}};
+
 
 #[derive(Debug, Clone)]
 pub struct Label {

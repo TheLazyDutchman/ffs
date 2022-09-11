@@ -28,6 +28,10 @@ impl ParserError {
 	}
 }
 
+pub trait Parsable {
+	type Token;
+}
+
 pub trait AST {
 	fn parse(value: String) -> Result<Self, ParserError> 
 			where 

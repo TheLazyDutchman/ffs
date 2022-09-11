@@ -3,6 +3,7 @@ use std::{iter::Peekable, slice::Iter};
 use crate::parsing::{ParserError, token::Token};
 
 pub mod html;
+pub mod markdown;
 
 pub trait MarkupToken: From<Token> + Clone {
 }
@@ -13,9 +14,9 @@ pub struct MarkupTokenStream<T> where T: MarkupToken {
 }
 
 impl<T> MarkupTokenStream<T> where T: MarkupToken {
-	fn iter(&self) -> Peekable<Iter<T>> {
-		self.values.iter().peekable()
-	}
+	// fn iter(&self) -> Peekable<Iter<T>> {
+	// 	self.values.iter().peekable()
+	// }
 }
 
 impl<'a, T> From<&mut Peekable<Iter<'a, Token>>> for MarkupTokenStream<T> where T: MarkupToken {
