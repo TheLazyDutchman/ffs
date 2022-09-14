@@ -11,5 +11,6 @@ pass_macro_attribute = { path = "pass_macro_attribute" }
 [target.debug]
 rustflags = [
   "-C", "link-arg=-Tlayout.ld",
-  "-C", "link-arg=-nostartfiles"
+  "-C", "link-arg=-nostartfiles",
+  "-C", "prefer-dynamic"
 ]

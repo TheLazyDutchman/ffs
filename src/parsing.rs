@@ -30,6 +30,8 @@ impl ParserError {
 
 pub trait Parsable {
 	type Token;
+
+	fn parse_tokens<'a>(tokens: String) -> Iter<'a, <Self as Parsable>::Token>;
 }
 
 pub trait AST {

@@ -2,7 +2,7 @@
 mod tests {
 	use std::{fs, collections::HashMap};
 
-	use ffs::{data::{json::{JSON}, yaml::YAML, Data, tsv::TSV, Row, csv::CSV}, parsing::{AST, token::{Token, Number}}};
+	use ffs::{data::{json::{JSON}, yaml::YAML, Data, tsv::TSV, Row, csv::CSV}, parsing::{AST, token::{Token, Number}}, markup::{html::HTML}};
 
 	#[test]
 	fn parse_json() {
@@ -48,5 +48,10 @@ mod tests {
 			Row{ values: vec![Token::Identifier("test".to_owned()), Token::Number(Number::new(10, 10))]},
 			Row{ values: vec![Token::Identifier("test2".to_owned()), Token::Number(Number::new(11, 10))]}
 		]});
+	}
+
+	#[test]
+	fn parse_html() {
+		let html = HTML::parse(fs::read_to_string("tests/test.html").unwrap());
 	}
 }
