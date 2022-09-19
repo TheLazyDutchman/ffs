@@ -39,7 +39,10 @@ fn impl_parsable_macro(attr: &[syn::NestedMeta], item: &syn::ItemStruct) -> Toke
                 let ident = nested.first().unwrap();
                 match ident {
                     syn::NestedMeta::Meta(syn::Meta::Path(ident)) if ident.get_ident().is_some() => {
-                        ident.get_ident().unwrap().clone()
+                        let ident = ident.get_ident().unwrap().clone();
+                        quote! {
+                            #ident(#ident)
+                        }
                     }
                     _ => continue
                 }
@@ -51,8 +54,14 @@ fn impl_parsable_macro(attr: &[syn::NestedMeta], item: &syn::ItemStruct) -> Toke
     let gen = quote! {
         #[derive(Clone)]
         pub enum Token {
+            Misc(char),
             #(#cases),*
         }
+
+        #[derive(Clone)]
+        pub struct Identifier;
+        #[derive(Clone)]
+        pub struct Operator;
 
         #(#attrs)*
         pub struct #struct_ident {
@@ -60,11 +69,11 @@ fn impl_parsable_macro(attr: &[syn::NestedMeta], item: &syn::ItemStruct) -> Toke
         }
 
         impl #struct_ident {
-            fn parse_identifier(tokens: Vec<Token>) -> Token {
+            fn parse_identifier(tokens: Vec<Token>) -> Result<Identifier, ParserError> {
                 todo!()
             }
 
-            fn parse_operator(tokens: Vec<Token>, operator: &'static str) -> Token {
+            fn parse_operator(tokens: Vec<Token>, operator: &'static str) -> Result<Operator, ParserError> {
                 todo!()
             }
         }
@@ -72,8 +81,8 @@ fn impl_parsable_macro(attr: &[syn::NestedMeta], item: &syn::ItemStruct) -> Toke
         impl Parsable for #struct_ident {
             type Token = Token;
 
-            fn parse_tokens<'a>(tokens: String) -> Iter<'a, Token> {
-                todo!()
+            fn parse_tokens(tokens: String) -> Vec<Token> {
+                tokens.chars().map(|c| Token::Misc(c)).collect()
             }
         }
     };
@@ -108,13 +117,26 @@ fn impl_pass_macro(attr: &[syn::NestedMeta], item: &syn::ItemStruct) -> TokenStr
 
     let struct_name = &item.ident;
     let attrs = &item.attrs;
+
     let mut tokens = Vec::new();
+    let mut names = Vec::new();
+    let mut properties = Vec::new();
 
     for token in format_tokens {
-        if token.len() > 3 && token.starts_with("{") && token.ends_with("}") {
-            let ident = &token[1..token.len() - 1];
+        let parts: Vec<&str> = token.split(":").collect();
+        if parts.len() < 2 {
+            return TokenStream::from(syn::Error::new(attr[1].span(), 
+                "Expected format tokens to have a name. Use the following format: <name>:<format>").to_compile_error())
+        }
+
+        let name = syn::Ident::new(parts[0], attr[1].span());
+        let format = parts[1];
+
+        if format.len() > 3 && format.starts_with("{") && format.ends_with("}") {
+            let ident = &format[1..format.len() - 1];
             let idents:Vec<&str> = ident.split(",").collect();
-            let fn_ident = syn::Ident::new(&format!("parse_{}", idents[0]), attr[1].span());
+            let type_ident = syn::Ident::new(idents[0], attr[1].span());
+            let fn_ident = syn::Ident::new(&format!("parse_{}", idents[0].to_lowercase()), attr[1].span());
 
             let idents = &idents[1..];
 
@@ -125,30 +147,39 @@ fn impl_pass_macro(attr: &[syn::NestedMeta], item: &syn::ItemStruct) -> TokenStr
 
             for ident in idents {
                 args.push(quote! {
-                    stringify!(ident)
+                    #ident
                 });
             }
 
             tokens.push(quote! {
-                value.push(Self::#fn_ident(#(#args),*));
-            })
+                let #name = Self::#fn_ident(#(#args),*)?;
+            });
+
+            properties.push(quote! {
+                #name: #type_ident
+            });
+            names.push(name);
         }
     }
     
     let gen = quote! {
+        #[derive(Clone)]
+        pub struct #ident {
+            #(#properties),*
+        }
+
         #(#attrs)*
         pub struct #struct_name {
             tokens: Vec<Token>
         }
 
         impl #struct_name {
-            fn #fn_ident(tokens: Vec<Token>) -> Token {
-                let mut value = Vec::new();
+            fn #fn_ident(tokens: Vec<Token>) -> Result<#ident, ParserError> {
                 let mut tokens = tokens.iter();
 
                 #(#tokens)*
 
-                Token::#ident
+                Ok(#ident { #(#names),* })
             }
         }
     };
