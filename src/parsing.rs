@@ -11,7 +11,7 @@ impl<D, I> Parse for Group<D, I> where
 	D: Delimiter,
 	I: Parse
 {
-    fn parse<E>(value: &str) -> Result<Self, E> where Self: Sized {
+    fn parse(value: &str) -> Result<Self, ParseError> where Self: Sized {
 		let start = D::Start::parse(value)?;
 		let end = D::End::parse(value)?;
 		let delimiter = D::new(start, end);
@@ -29,15 +29,23 @@ impl<I, S> Parse for List<I, S> where
 	I: Parse,
 	S: tokens::Token
 {
-    fn parse<E>(value: &str) -> Result<Self, E> where Self: Sized {
+    fn parse(value: &str) -> Result<Self, ParseError> where Self: Sized {
         let items = Vec::new();
-
-
 
 		Ok(Self { items })
     }
 }
 
 pub trait Parse {
-	fn parse<E>(value: &str) -> Result<Self, E> where Self: Sized;
+	fn parse(value: &str) -> Result<Self, ParseError> where Self: Sized;
+}
+
+pub struct ParseError {
+	cause: String
+}
+
+impl ParseError {
+	pub fn new(cause: &str) -> ParseError {
+		ParseError { cause: cause.to_owned() }
+	}
 }

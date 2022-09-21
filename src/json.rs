@@ -1,5 +1,5 @@
 use parse_macro_derive::Parsable;
-use crate::parsing::{Group, List, tokens::{Bracket, Comma}, Parse};
+use crate::parsing::{self, Group, List, tokens::{Bracket, Comma}, Parse};
 
 #[derive(Parsable)]
 pub struct JSONList {
@@ -8,5 +8,5 @@ pub struct JSONList {
 
 #[derive(Parsable)]
 pub enum JSONNode {
-
+	List(JSONList)
 }

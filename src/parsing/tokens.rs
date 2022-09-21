@@ -1,4 +1,4 @@
-use super::Parse;
+use super::{Parse, ParseError};
 
 pub trait Token: Parse {
 
@@ -45,7 +45,7 @@ impl Token for RightBracket {
 }
 
 impl<T> Parse for T where T: Token {
-    fn parse<E>(value: &str) -> Result<Self, E> {
+    fn parse(value: &str) -> Result<Self, ParseError> {
         todo!()
     }
 }
