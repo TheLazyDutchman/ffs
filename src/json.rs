@@ -1,13 +1,12 @@
-use parse_macro_derive::Parse;
-use crate::parsing::{Group, List, tokens::{Brackets, Comma}};
+use parse_macro_derive::Parsable;
+use crate::parsing::{Group, List, tokens::{Bracket, Comma}, Parse};
 
-use super::Parse;
-
-#[derive(Parse)]
+#[derive(Parsable)]
 pub struct JSONList {
-	list: Group<Brackets, List<JSONNode, Comma>>
+	list: Group<Bracket, List<JSONNode, Comma>>
 }
 
+#[derive(Parsable)]
 pub enum JSONNode {
 
 }
