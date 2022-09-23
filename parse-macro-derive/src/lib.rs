@@ -46,7 +46,29 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
                         todo!()
                     }
                     Fields::Unnamed(fields) => {
-                        todo!()
+                        let fields = fields.unnamed.iter();
+                        let types = fields.map(|f| &f.ty);
+
+                        let type_objects = types.clone().map(|t| {
+                            quote! {
+                                <#t as Parse>::parse(value)
+                            }
+                        });
+
+                        let mut values = Vec::new();
+                        for (i, _) in types.enumerate() {
+                            values.push(syn::Ident::new(&format!("value{}", i), variant_ident.span()));
+                        }
+
+                        let results = values.iter().map(|v| quote! {
+                            #v?
+                        });
+
+                        Ok(quote! {
+                            if let (#(#values),*) = (#(#type_objects),*) {
+                                return ::std::result::Result::Ok(#ident::#variant_ident(#(#results),*));
+                            }
+                        })
                     }
                     Fields::Unit => {
                         Err(TokenStream::from(Error::new(variant_ident.span(), "Can not derive Parse from a unit variant").to_compile_error()))
@@ -59,9 +81,11 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
                 Err(err) => return err
             };
 
+            let error = format!("Can not parse {}", ident);
+
             quote! {
                 #(#variants)*
-                Err(parsing::ParseError::new(&format!("Can not parse {}", stringify!(#ident))))
+                ::std::result::Result::Err(parsing::ParseError::new(#error))
             }
         }
         Data::Union(DataUnion {union_token, fields: _}) 
@@ -70,7 +94,7 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
 
     let gen = quote! {
         impl #generics Parse for #ident #generics {
-            fn parse(value: &str) -> Result<Self, parsing::ParseError> {
+            fn parse(value: &str) -> ::std::result::Result<Self, parsing::ParseError> {
                 #function_body
             }
         }
