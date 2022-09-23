@@ -1,6 +1,5 @@
-use self::tokens::Delimiter;
-
 pub mod tokens;
+
 
 pub struct Group<D, I> {
 	delimiter: D,
@@ -8,7 +7,7 @@ pub struct Group<D, I> {
 }
 
 impl<D, I> Parse for Group<D, I> where
-	D: Delimiter,
+	D: tokens::Delimiter,
 	I: Parse
 {
     fn parse(value: &str) -> Result<Self, ParseError> where Self: Sized {
@@ -33,6 +32,20 @@ impl<I, S> Parse for List<I, S> where
         let items = Vec::new();
 
 		Ok(Self { items })
+    }
+}
+
+impl Parse for String {
+    fn parse(value: &str) -> Result<Self, ParseError> where Self: Sized {
+        todo!()
+    }
+}
+
+pub struct Number;
+
+impl Parse for Number {
+    fn parse(value: &str) -> Result<Self, ParseError> where Self: Sized {
+        todo!()
     }
 }
 

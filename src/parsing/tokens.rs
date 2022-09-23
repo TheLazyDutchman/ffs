@@ -26,9 +26,30 @@ impl Delimiter for Bracket {
     }
 }
 
+pub struct Brace {
+    start: <Self as Delimiter>::Start,
+    end: <Self as Delimiter>::End
+}
+
+impl Delimiter for Brace {
+    type Start = LeftBrace;
+
+    type End = RightBrace;
+
+    fn new(start: Self::Start, end: Self::End) -> Self where Self: Sized {
+        todo!()
+    }
+}
+
 pub struct Comma;
 
 impl Token for Comma {
+
+}
+
+pub struct Colon;
+
+impl Token for Colon {
 
 }
 
@@ -41,6 +62,18 @@ impl Token for LeftBracket {
 pub struct RightBracket;
 
 impl Token for RightBracket {
+
+}
+
+pub struct LeftBrace;
+
+impl Token for LeftBrace {
+
+}
+
+pub struct RightBrace;
+
+impl Token for RightBrace {
 
 }
 
