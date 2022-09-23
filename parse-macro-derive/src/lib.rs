@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{DeriveInput, parse_macro_input, Data, Error, DataUnion, spanned::Spanned, DataStruct, Fields, Field, DataEnum};
+use syn::{DeriveInput, parse_macro_input, Data, Error, DataUnion, spanned::Spanned, DataStruct, Fields, DataEnum};
 
 
 #[proc_macro_derive(Parsable)]
@@ -21,7 +21,7 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
                         let ident = &f.ident;
                         let ty = &f.ty;
                         quote! {
-                            let #ident = <#ty as Parse>::parse(value)?;
+                            let #ident = <#ty as parsing::Parse>::parse(value)?;
                         }
                     }).collect::<Vec<_>>();
 
@@ -32,9 +32,21 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
                     }
                 }
                 Fields::Unnamed(fields) => {
-                    todo!()
+                    let fields = fields.unnamed.iter();
+
+                    let types = fields.map(|f| &f.ty);
+                    let values = types.clone().map(|t| {
+                        quote! {
+                            <#t as parsing::Parse>::parse(value)?
+                        }
+                    });
+
+                    quote! {
+                        let value = Self(#(#values),*);
+                        ::std::result::Result::Ok(value)
+                    }
                 }
-                Fields::Unit => return TokenStream::from(Error::new(ident.span(), "Can not derive Parse from a unit struct").to_compile_error())
+                Fields::Unit => return TokenStream::from(Error::new(ident.span(), "Can not derive parsing::Parse from a unit struct").to_compile_error())
             }
         }
         Data::Enum(DataEnum { enum_token: _, brace_token: _, variants}) => {
@@ -51,13 +63,13 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
 
                         let type_objects = types.clone().map(|t| {
                             quote! {
-                                <#t as Parse>::parse(value)
+                                <#t as parsing::Parse>::parse(value)
                             }
                         });
 
                         let mut values = Vec::new();
-                        for (i, _) in types.enumerate() {
-                            values.push(syn::Ident::new(&format!("value{}", i), variant_ident.span()));
+                        for (i, ty) in types.enumerate() {
+                            values.push(syn::Ident::new(&format!("value{}", i), ty.span()));
                         }
 
                         let results = values.iter().map(|v| quote! {
@@ -71,7 +83,7 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
                         })
                     }
                     Fields::Unit => {
-                        Err(TokenStream::from(Error::new(variant_ident.span(), "Can not derive Parse from a unit variant").to_compile_error()))
+                        Err(TokenStream::from(Error::new(variant_ident.span(), "Can not derive parsing::Parse from a unit variant").to_compile_error()))
                     }
                 }
             }).collect::<Result<Vec<_>,_>>();
@@ -89,11 +101,11 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
             }
         }
         Data::Union(DataUnion {union_token, fields: _}) 
-            => return TokenStream::from(Error::new(union_token.span(), "Can not derive Parse from a union type").to_compile_error())
+            => return TokenStream::from(Error::new(union_token.span(), "Can not derive parsing::Parse from a union type").to_compile_error())
     };
 
     let gen = quote! {
-        impl #generics Parse for #ident #generics {
+        impl #generics parsing::Parse for #ident #generics {
             fn parse(value: &str) -> ::std::result::Result<Self, parsing::ParseError> {
                 #function_body
             }

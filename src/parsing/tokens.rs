@@ -77,7 +77,28 @@ impl Token for RightBrace {
 
 }
 
+pub struct Less;
+
+impl Token for Less {
+}
+
+pub struct Greater;
+
+impl Token for Greater {}
+
+pub struct ForwardSlash;
+
+impl Token for ForwardSlash {}
+
 impl<T> Parse for T where T: Token {
+    fn parse(value: &str) -> Result<Self, ParseError> {
+        todo!()
+    }
+}
+
+pub struct Identifier {}
+
+impl Parse for Identifier {
     fn parse(value: &str) -> Result<Self, ParseError> {
         todo!()
     }

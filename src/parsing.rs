@@ -62,3 +62,17 @@ impl ParseError {
 		ParseError { cause: cause.to_owned() }
 	}
 }
+
+impl<T> Parse for Vec<T> where T: Parse {
+	fn parse(value: &str) -> Result<Self, ParseError> {
+		let mut vec = Vec::new();
+
+		let mut item = T::parse(value);
+		while item.is_ok() {
+			vec.push(item?);
+			item = T::parse(value);
+		}
+
+		Ok(vec)
+	}
+}

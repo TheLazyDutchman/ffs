@@ -1,5 +1,5 @@
 use parse_macro_derive::Parsable;
-use crate::parsing::{self, Group, List, tokens::{Bracket, Comma, Brace, Colon}, Parse, Number};
+use crate::parsing::{self, Group, List, tokens::{Bracket, Comma, Brace, Colon}, Number};
 
 #[derive(Parsable)]
 pub struct JSONList {
