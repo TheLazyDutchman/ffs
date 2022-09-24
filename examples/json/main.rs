@@ -1,5 +1,7 @@
+use std::fs;
+
 use parse_macro_derive::Parsable;
-use crate::parsing::{self, Group, List, tokens::{Bracket, Comma, Brace, Colon}, Number};
+use ffs::parsing::{self, Group, List, tokens::{Bracket, Comma, Brace, Colon}, Number, Parse};
 
 #[derive(Parsable)]
 pub struct JSONList {
@@ -31,4 +33,11 @@ pub enum JSONNode {
 	List(JSONList),
 	Object(JSONObject),
 	Value(Value)
+}
+
+fn main() {
+	let file = fs::read_to_string("examples/json/example.json")
+		.expect("Expected example file to exist.");
+
+	JSONNode::parse(&file).unwrap();
 }

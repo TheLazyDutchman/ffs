@@ -53,6 +53,7 @@ pub trait Parse {
 	fn parse(value: &str) -> Result<Self, ParseError> where Self: Sized;
 }
 
+#[derive(Debug)]
 pub struct ParseError {
 	cause: String
 }
