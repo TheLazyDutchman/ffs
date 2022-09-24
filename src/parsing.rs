@@ -12,10 +12,11 @@ impl<D, I> Parse for Group<D, I> where
 {
     fn parse(value: &str) -> Result<Self, ParseError> where Self: Sized {
 		let start = D::Start::parse(value)?;
+		let item = I::parse(value)?;
 		let end = D::End::parse(value)?;
+
 		let delimiter = D::new(start, end);
 
-		let item = I::parse(value)?;
 		Ok(Self { delimiter, item })
     }
 }

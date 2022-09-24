@@ -11,89 +11,86 @@ pub trait Delimiter {
 	fn new(start: Self::Start, end: Self::End) -> Self where Self: Sized;
 }
 
-pub struct Bracket {
-	start: <Self as Delimiter>::Start,
-	end: <Self as Delimiter>::End
+macro_rules! create_tokens {
+    ($($token:tt $id:ident),+) => {
+        $(
+            pub struct $id;
+            
+            impl Token for $id {}
+            
+            impl Parse for $id {
+                fn parse(value: &str) -> Result<Self, ParseError> {
+                    if value.starts_with(stringify!($token)) {
+                        return Ok(Self {});
+                    }
+
+                    Err(ParseError::new(concat!("Could not find token '", stringify!($token), "'.")))
+                }
+            }
+        )+
+    };
 }
 
-impl Delimiter for Bracket {
-    type Start = LeftBracket;
+macro_rules! create_delimiters {
+    ($($token:tt $left: ident $right: ident $delim:ident),+) => {
+        $(
+            pub struct $left;
 
-    type End = RightBracket;
+            impl Token for $left {}
 
-    fn new(start: Self::Start, end: Self::End) -> Self where Self: Sized {
-        Self { start, end }
-    }
+            impl Parse for $left {
+                fn parse(value: &str) -> Result<Self, ParseError> {
+                    if value.starts_with(&stringify!($token)[..1]) {
+                        return Ok(Self {});
+                    }
+
+                    Err(ParseError::new(concat!("could not find left side of: '", stringify!($token), "'.")))
+                }
+            }
+
+            pub struct $right;
+
+            impl Token for $right {}
+
+            impl Parse for $right {
+                fn parse(value: &str) -> Result<Self, ParseError> {
+                    if value.starts_with(&stringify!($token)[1..]) {
+                        return Ok(Self {});
+                    }
+
+                    Err(ParseError::new(concat!("could not parse right side of: '", stringify!($token), "'.")))
+                }
+            }
+
+            pub struct $delim {
+                start: $left,
+                end: $right
+            }
+
+            impl Delimiter for $delim {
+                type Start = $left;
+                type End = $right;
+
+                fn new(start: Self::Start, end: Self::End) -> Self {
+                    Self { start, end }
+                }
+            }
+        )+
+    };
 }
 
-pub struct Brace {
-    start: <Self as Delimiter>::Start,
-    end: <Self as Delimiter>::End
+create_tokens! {
+    , Comma,
+    . Period,
+    ! Bang,
+    # Hash,
+    : Colon
 }
 
-impl Delimiter for Brace {
-    type Start = LeftBrace;
-
-    type End = RightBrace;
-
-    fn new(start: Self::Start, end: Self::End) -> Self where Self: Sized {
-        todo!()
-    }
-}
-
-pub struct Comma;
-
-impl Token for Comma {
-
-}
-
-pub struct Colon;
-
-impl Token for Colon {
-
-}
-
-pub struct LeftBracket;
-
-impl Token for LeftBracket {
-
-}
-
-pub struct RightBracket;
-
-impl Token for RightBracket {
-
-}
-
-pub struct LeftBrace;
-
-impl Token for LeftBrace {
-
-}
-
-pub struct RightBrace;
-
-impl Token for RightBrace {
-
-}
-
-pub struct Less;
-
-impl Token for Less {
-}
-
-pub struct Greater;
-
-impl Token for Greater {}
-
-pub struct ForwardSlash;
-
-impl Token for ForwardSlash {}
-
-impl<T> Parse for T where T: Token {
-    fn parse(value: &str) -> Result<Self, ParseError> {
-        todo!()
-    }
+create_delimiters! {
+    () LeftParen RightParen Paren,
+    {} LeftBrace RightBrace Brace,
+    [] LeftBracket RightBracket Bracket
 }
 
 pub struct Identifier {}
