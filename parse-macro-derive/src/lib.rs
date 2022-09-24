@@ -72,13 +72,13 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
                             values.push(syn::Ident::new(&format!("value{}", i), ty.span()));
                         }
 
-                        let results = values.iter().map(|v| quote! {
-                            #v?
+                        let tests = values.iter().map(|v| quote! {
+                            Ok(#v)
                         });
 
                         Ok(quote! {
-                            if let (#(#values),*) = (#(#type_objects),*) {
-                                return ::std::result::Result::Ok(#ident::#variant_ident(#(#results),*));
+                            if let (#(#tests),*) = (#(#type_objects),*) {
+                                return ::std::result::Result::Ok(#ident::#variant_ident(#(#values),*));
                             }
                         })
                     }
