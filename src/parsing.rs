@@ -1,5 +1,21 @@
 pub mod tokens;
 
+use parse_macro_derive::Parsable;
+
+pub trait Parse {
+	fn parse(value: &str) -> Result<Self, ParseError> where Self: Sized;
+}
+
+#[derive(Debug)]
+pub struct ParseError {
+	cause: String
+}
+
+impl ParseError {
+	pub fn new(cause: &str) -> ParseError {
+		ParseError { cause: cause.to_owned() }
+	}
+}
 
 pub struct Group<D, I> {
 	delimiter: D,
@@ -36,8 +52,17 @@ impl<I, S> Parse for List<I, S> where
     }
 }
 
-impl Parse for String {
-    fn parse(value: &str) -> Result<Self, ParseError> where Self: Sized {
+#[derive(Parsable)]
+pub struct StringValue {
+	begin: tokens::Quote,
+	value: Identifier,
+	end: tokens::Quote
+}
+
+pub struct Identifier {}
+
+impl Parse for Identifier {
+    fn parse(value: &str) -> Result<Self, ParseError> {
         todo!()
     }
 }
@@ -48,21 +73,6 @@ impl Parse for Number {
     fn parse(value: &str) -> Result<Self, ParseError> where Self: Sized {
         todo!()
     }
-}
-
-pub trait Parse {
-	fn parse(value: &str) -> Result<Self, ParseError> where Self: Sized;
-}
-
-#[derive(Debug)]
-pub struct ParseError {
-	cause: String
-}
-
-impl ParseError {
-	pub fn new(cause: &str) -> ParseError {
-		ParseError { cause: cause.to_owned() }
-	}
 }
 
 impl<T> Parse for Vec<T> where T: Parse {

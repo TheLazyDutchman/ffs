@@ -84,19 +84,15 @@ create_tokens! {
     . Period,
     ! Bang,
     # Hash,
-    : Colon
+    : Colon,
+    < Less,
+    > Greater,
+    / ForwardSlash
 }
 
 create_delimiters! {
     () LeftParen RightParen Paren,
     {} LeftBrace RightBrace Brace,
-    [] LeftBracket RightBracket Bracket
-}
-
-pub struct Identifier {}
-
-impl Parse for Identifier {
-    fn parse(value: &str) -> Result<Self, ParseError> {
-        todo!()
-    }
+    [] LeftBracket RightBracket Bracket,
+    "" Quote _LQuote Quotes
 }

@@ -1,7 +1,7 @@
 use std::fs;
 
 use parse_macro_derive::Parsable;
-use ffs::parsing::{self, Group, List, tokens::{Bracket, Comma, Brace, Colon}, Number, Parse};
+use ffs::parsing::{ParseError, Group, List, tokens::{Bracket, Comma, Brace, Colon}, Number, StringValue, Parse};
 
 #[derive(Parsable)]
 pub struct JSONList {
@@ -11,7 +11,7 @@ pub struct JSONList {
 
 #[derive(Parsable)]
 pub struct NamedValue {
-	name: String,
+	name: StringValue,
 	colon: Colon,
 	value: JSONNode
 }
@@ -24,7 +24,7 @@ pub struct JSONObject {
 
 #[derive(Parsable)]
 pub enum Value {
-	String(String),
+	String(StringValue),
 	Number(Number)
 }
 

@@ -15,20 +15,26 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
                 Fields::Named(fields) => {
                     let fields = fields.named.iter();
 
-                    let idents = fields.clone().map(|f| &f.ident).flatten().collect::<Vec<_>>();
-
-                    let definitions = fields.map(|f| {
-                        let ident = &f.ident;
+                    let definitions = fields.clone().map(|f| {
+                        let ident = syn::Ident::new(&format!("inner_{}", f.ident.clone().unwrap().to_string()), f.ident.span());
                         let ty = &f.ty;
                         quote! {
-                            let #ident = <#ty as parsing::Parse>::parse(value)?;
+                            let #ident = <#ty as Parse>::parse(value)?;
+                        }
+                    }).collect::<Vec<_>>();
+
+                    let values = fields.map(|f| {
+                        let ident = &f.ident;
+                        let value = syn::Ident::new(&format!("inner_{}", f.ident.clone().unwrap().to_string()), f.ident.span());
+                        quote! {
+                            #ident:#value
                         }
                     }).collect::<Vec<_>>();
 
                     quote! {
                         #(#definitions)*
 
-                        ::std::result::Result::Ok(Self { #(#idents),* })
+                        ::std::result::Result::Ok(Self { #(#values),* })
                     }
                 }
                 Fields::Unnamed(fields) => {
@@ -37,7 +43,7 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
                     let types = fields.map(|f| &f.ty);
                     let values = types.clone().map(|t| {
                         quote! {
-                            <#t as parsing::Parse>::parse(value)?
+                            <#t as Parse>::parse(value)?
                         }
                     });
 
@@ -46,7 +52,7 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
                         ::std::result::Result::Ok(value)
                     }
                 }
-                Fields::Unit => return TokenStream::from(Error::new(ident.span(), "Can not derive parsing::Parse from a unit struct").to_compile_error())
+                Fields::Unit => return TokenStream::from(Error::new(ident.span(), "Can not derive Parse from a unit struct").to_compile_error())
             }
         }
         Data::Enum(DataEnum { enum_token: _, brace_token: _, variants}) => {
@@ -63,7 +69,7 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
 
                         let type_objects = types.clone().map(|t| {
                             quote! {
-                                <#t as parsing::Parse>::parse(value)
+                                <#t as Parse>::parse(value)
                             }
                         });
 
@@ -83,7 +89,7 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
                         })
                     }
                     Fields::Unit => {
-                        Err(TokenStream::from(Error::new(variant_ident.span(), "Can not derive parsing::Parse from a unit variant").to_compile_error()))
+                        Err(TokenStream::from(Error::new(variant_ident.span(), "Can not derive Parse from a unit variant").to_compile_error()))
                     }
                 }
             }).collect::<Result<Vec<_>,_>>();
@@ -97,16 +103,16 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
 
             quote! {
                 #(#variants)*
-                ::std::result::Result::Err(parsing::ParseError::new(#error))
+                ::std::result::Result::Err(ParseError::new(#error))
             }
         }
         Data::Union(DataUnion {union_token, fields: _}) 
-            => return TokenStream::from(Error::new(union_token.span(), "Can not derive parsing::Parse from a union type").to_compile_error())
+            => return TokenStream::from(Error::new(union_token.span(), "Can not derive Parse from a union type").to_compile_error())
     };
 
     let gen = quote! {
-        impl #generics parsing::Parse for #ident #generics {
-            fn parse(value: &str) -> ::std::result::Result<Self, parsing::ParseError> {
+        impl #generics Parse for #ident #generics {
+            fn parse(value: &str) -> ::std::result::Result<Self, ParseError> {
                 #function_body
             }
         }
