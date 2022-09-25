@@ -9,13 +9,18 @@ pub trait Parse {
 }
 
 #[derive(Debug)]
-pub struct ParseError {
-	cause: String
+pub enum ParseError {
+	NotFound(String),
+	Error(String)
 }
 
 impl ParseError {
-	pub fn new(cause: &str) -> ParseError {
-		ParseError { cause: cause.to_owned() }
+	pub fn not_found(cause: &str) -> ParseError {
+		ParseError::NotFound(cause.to_owned())
+	}
+
+	pub fn error(cause: &str) -> ParseError {
+		ParseError::Error(cause.to_owned())
 	}
 }
 
@@ -77,7 +82,7 @@ impl Parse for Identifier {
 		}
 
 		if identifier.len() == 0 {
-			return Err(ParseError::new("Could not parse identifier."));
+			return Err(ParseError::not_found("Did not find identifier"));
 		}
 
 		Ok(Self { identifier })
@@ -100,7 +105,7 @@ impl Parse for Number {
 		}
 
 		if number.len() == 0 {
-			return Err(ParseError::new("Could not parse number."));
+			return Err(ParseError::not_found("Did not find number."));
 		}
 
 		Ok(Number { value: number })

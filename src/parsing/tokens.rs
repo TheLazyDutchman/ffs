@@ -1,4 +1,4 @@
-use std::{slice::Iter, str::Chars};
+use std::str::Chars;
 
 use super::{Parse, ParseError};
 
@@ -38,7 +38,7 @@ macro_rules! create_tokens {
                         return Ok(Self {});
                     }
 
-                    Err(ParseError::new(concat!("Could not find token '", stringify!($token), "'.")))
+                    Err(ParseError::not_found(concat!("Could not find token '", stringify!($token), "'.")))
                 }
             }
         )+
@@ -63,7 +63,7 @@ macro_rules! create_delimiters {
                             _ => break 
                         };
                     }
-                    Err(ParseError::new(concat!("could not find left side of: '", stringify!($token), "'.")))
+                    Err(ParseError::not_found(concat!("could not find left side of: '", stringify!($token), "'.")))
                 }
             }
 
@@ -81,7 +81,7 @@ macro_rules! create_delimiters {
                             _ => break
                         }
                     }
-                    Err(ParseError::new(concat!("could not parse right side of: '", stringify!($token), "'.")))
+                    Err(ParseError::not_found(concat!("could not parse right side of: '", stringify!($token), "'.")))
                 }
             }
 

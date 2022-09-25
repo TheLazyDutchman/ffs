@@ -13,13 +13,29 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
         Data::Struct(DataStruct {struct_token: _, fields, semi_token: _}) => {
             match fields {
                 Fields::Named(fields) => {
-                    let fields = fields.named.iter();
+                    let mut fields = fields.named.iter();
+
+                    let first_field = match fields.next() {
+                        Some(value) => value,
+                        None => return TokenStream::from(Error::new(ident.span(), "Can not derive parse from an empty struct").to_compile_error())
+                    };
+
+                    let first_ident = &first_field.ident;
+                    let first_value = syn::Ident::new(&format!("inner_{}", first_ident.clone().unwrap().to_string()), first_ident.span());
+                    let first_type = &first_field.ty;
+
+                    let first_definition = quote! {
+                        let #first_value = <#first_type as Parse>::parse(value)?;
+                    };
 
                     let definitions = fields.clone().map(|f| {
                         let ident = syn::Ident::new(&format!("inner_{}", f.ident.clone().unwrap().to_string()), f.ident.span());
                         let ty = &f.ty;
                         quote! {
-                            let #ident = <#ty as Parse>::parse(value)?;
+                            let #ident = match <#ty as Parse>::parse(value) {
+                                Ok(value) => value,
+                                Err(error) => return Err(ParseError::error(&format!("Could not parse {}, because: '{:?}'", stringify!(#ident), error)))
+                            };
                         }
                     }).collect::<Vec<_>>();
 
@@ -32,9 +48,10 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
                     }).collect::<Vec<_>>();
 
                     quote! {
+                        #first_definition
                         #(#definitions)*
 
-                        ::std::result::Result::Ok(Self { #(#values),* })
+                        ::std::result::Result::Ok(Self { #first_ident: #first_value, #(#values),* })
                     }
                 }
                 Fields::Unnamed(fields) => {
@@ -65,7 +82,7 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
                     }
                     Fields::Unnamed(fields) => {
                         let fields = fields.unnamed.iter();
-                        let types = fields.map(|f| &f.ty);
+                        let types = fields.clone().map(|f| &f.ty);
 
                         let type_objects = types.clone().map(|t| {
                             quote! {
@@ -74,17 +91,30 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
                         });
 
                         let mut values = Vec::new();
-                        for (i, ty) in types.enumerate() {
-                            values.push(syn::Ident::new(&format!("value{}", i), ty.span()));
-                        }
+                        let mut tests = Vec::new();
+                        let objects = fields.enumerate().map(|(i, field)| {
+                            let ty = &field.ty;
+                            let value = syn::Ident::new(&format!("value{}", i), ty.span());
 
-                        let tests = values.iter().map(|v| quote! {
-                            Ok(#v)
-                        });
+                            values.push(value.clone());
+                            tests.push(quote! {
+                                Ok(#value)
+                            });
+
+                            quote! {
+                                let #value = match <#ty as Parse>::parse(&mut value.clone()) {
+                                    Err(ParseError::Error(value)) => return Err(ParseError::error(&value)),
+                                    value => value
+                                };
+                            }
+                        }).collect::<Vec<_>>();
 
                         Ok(quote! {
-                            if let (#(#tests),*) = (#(#type_objects),*) {
-                                return ::std::result::Result::Ok(#ident::#variant_ident(#(#values),*));
+                            {
+                                #(#objects)*
+                                if let (#(#tests),*) = (#(#values),*) {
+                                    return ::std::result::Result::Ok(#ident::#variant_ident(#(#values),*));
+                                }
                             }
                         })
                     }
@@ -99,11 +129,11 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
                 Err(err) => return err
             };
 
-            let error = format!("Can not parse {}", ident);
+            let error = format!("Did not find variant for {}", ident);
 
             quote! {
                 #(#variants)*
-                ::std::result::Result::Err(ParseError::new(#error))
+                ::std::result::Result::Err(ParseError::not_found(#error))
             }
         }
         Data::Union(DataUnion {union_token, fields: _}) 
