@@ -69,7 +69,7 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
 
                         let type_objects = types.clone().map(|t| {
                             quote! {
-                                <#t as Parse>::parse(value)
+                                <#t as Parse>::parse(&mut value.clone())
                             }
                         });
 
@@ -112,7 +112,7 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
 
     let gen = quote! {
         impl #generics Parse for #ident #generics {
-            fn parse(value: &str) -> ::std::result::Result<Self, ParseError> {
+            fn parse(value: &mut ::std::str::Chars) -> ::std::result::Result<Self, ParseError> {
                 #function_body
             }
         }

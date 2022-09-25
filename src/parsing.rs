@@ -1,9 +1,11 @@
 pub mod tokens;
 
+use std::str::Chars;
+
 use parse_macro_derive::Parsable;
 
 pub trait Parse {
-	fn parse(value: &str) -> Result<Self, ParseError> where Self: Sized;
+	fn parse(value: &mut Chars) -> Result<Self, ParseError> where Self: Sized;
 }
 
 #[derive(Debug)]
@@ -26,7 +28,7 @@ impl<D, I> Parse for Group<D, I> where
 	D: tokens::Delimiter,
 	I: Parse
 {
-    fn parse(value: &str) -> Result<Self, ParseError> where Self: Sized {
+    fn parse(value: &mut Chars) -> Result<Self, ParseError> where Self: Sized {
 		let start = D::Start::parse(value)?;
 		let item = I::parse(value)?;
 		let end = D::End::parse(value)?;
@@ -45,7 +47,7 @@ impl<I, S> Parse for List<I, S> where
 	I: Parse,
 	S: tokens::Token
 {
-    fn parse(value: &str) -> Result<Self, ParseError> where Self: Sized {
+    fn parse(value: &mut Chars) -> Result<Self, ParseError> where Self: Sized {
         let items = Vec::new();
 
 		Ok(Self { items })
@@ -59,24 +61,54 @@ pub struct StringValue {
 	end: tokens::Quote
 }
 
-pub struct Identifier {}
+pub struct Identifier {
+	identifier: String
+}
 
 impl Parse for Identifier {
-    fn parse(value: &str) -> Result<Self, ParseError> {
-        todo!()
+    fn parse(value: &mut Chars) -> Result<Self, ParseError> {
+		let mut identifier = String::new();
+
+		loop {
+		    match value.next() {
+				Some(value) if value.is_alphanumeric() => identifier.push(value),
+				_ => break
+		    }
+		}
+
+		if identifier.len() == 0 {
+			return Err(ParseError::new("Could not parse identifier."));
+		}
+
+		Ok(Self { identifier })
     }
 }
 
-pub struct Number;
+pub struct Number {
+	value: String
+}
 
 impl Parse for Number {
-    fn parse(value: &str) -> Result<Self, ParseError> where Self: Sized {
-        todo!()
+    fn parse(value: &mut Chars) -> Result<Self, ParseError> where Self: Sized {
+		let mut number = String::new();
+		
+		loop {
+		    match value.next() {
+		        Some(value) if value.is_numeric() => number.push(value),
+				_ => break
+		    }
+		}
+
+		if number.len() == 0 {
+			return Err(ParseError::new("Could not parse number."));
+		}
+
+		Ok(Number { value: number })
     }
 }
 
 impl<T> Parse for Vec<T> where T: Parse {
-	fn parse(value: &str) -> Result<Self, ParseError> {
+	fn parse(value: &mut Chars) -> Result<Self, ParseError> {
 		let mut vec = Vec::new();
 
 		let mut item = T::parse(value);

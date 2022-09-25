@@ -39,5 +39,5 @@ fn main() {
 	let file = fs::read_to_string("examples/json/example.json")
 		.expect("Expected example file to exist.");
 
-	JSONNode::parse(&file).unwrap();
+	JSONNode::parse(&mut file.chars()).unwrap();
 }

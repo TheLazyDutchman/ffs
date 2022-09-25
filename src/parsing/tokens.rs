@@ -1,3 +1,5 @@
+use std::{slice::Iter, str::Chars};
+
 use super::{Parse, ParseError};
 
 pub trait Token: Parse {
@@ -19,8 +21,20 @@ macro_rules! create_tokens {
             impl Token for $id {}
             
             impl Parse for $id {
-                fn parse(value: &str) -> Result<Self, ParseError> {
-                    if value.starts_with(stringify!($token)) {
+                fn parse(value: &mut Chars) -> Result<Self, ParseError> {
+                    let token = stringify!($token);
+                    let len = token.len();
+
+                    let mut mtch = String::new();
+                    while mtch.len() < len {
+                        mtch.push(match value.next() {
+                            Some(value) if value.is_whitespace() => continue,
+                            Some(value) => value,
+                            None => break
+                        });
+                    }
+
+                    if (token == mtch) {
                         return Ok(Self {});
                     }
 
@@ -39,11 +53,16 @@ macro_rules! create_delimiters {
             impl Token for $left {}
 
             impl Parse for $left {
-                fn parse(value: &str) -> Result<Self, ParseError> {
-                    if value.starts_with(&stringify!($token)[..1]) {
-                        return Ok(Self {});
-                    }
+                fn parse(value: &mut Chars) -> Result<Self, ParseError> {
+                    let chr = stringify!($token).chars().nth(0).unwrap();
 
+                    loop {
+                        match value.next() {
+                            Some(value) if value == chr => return Ok(Self {}),
+                            Some(value) if value.is_whitespace() => continue,
+                            _ => break 
+                        };
+                    }
                     Err(ParseError::new(concat!("could not find left side of: '", stringify!($token), "'.")))
                 }
             }
@@ -53,11 +72,15 @@ macro_rules! create_delimiters {
             impl Token for $right {}
 
             impl Parse for $right {
-                fn parse(value: &str) -> Result<Self, ParseError> {
-                    if value.starts_with(&stringify!($token)[1..]) {
-                        return Ok(Self {});
+                fn parse(value: &mut Chars) -> Result<Self, ParseError> {
+                    let chr = stringify!($token).chars().nth(1).unwrap();
+                    loop {
+                        match value.next() {
+                            Some(value) if value == chr => return Ok(Self {}),
+                            Some(value) if value.is_whitespace() => continue,
+                            _ => break
+                        }
                     }
-
                     Err(ParseError::new(concat!("could not parse right side of: '", stringify!($token), "'.")))
                 }
             }
