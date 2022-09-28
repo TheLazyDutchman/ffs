@@ -35,7 +35,11 @@ impl<D, I> Parse for Group<D, I> where
     fn parse(value: &mut CharStream<'_>) -> Result<Self, ParseError> where Self: Sized {
 		let start = D::Start::parse(value)?;
 		let item = I::parse(value)?;
-		let end = D::End::parse(value)?;
+		let end = match D::End::parse(value) {
+			Ok(value) => value,
+			Err(ParseError::Error(cause, position)) => return Err(ParseError::error(&cause, position)),
+			Err(ParseError::NotFound(cause, position)) => return Err(ParseError::error(&format!("Could not parse group, because: {}", cause), position))
+		};
 
 		let delimiter = D::new(start, end);
 
@@ -52,7 +56,29 @@ impl<I, S> Parse for List<I, S> where
 	S: tokens::Token
 {
     fn parse(value: &mut CharStream<'_>) -> Result<Self, ParseError> where Self: Sized {
-        let items = Vec::new();
+        let mut items = Vec::new();
+
+		loop {
+			let item = match I::parse(value) {
+				Ok(value) => value,
+				Err(error) => {
+					if items.len() > 0 {
+						return Err(error);
+					}
+					break
+				}
+			};
+
+			let separator = match S::parse(value) {
+				Ok(value) => Some(value),
+				_ => {
+					items.push((item, None));
+					break;
+				}
+			};
+
+			items.push((item, separator));
+		}
 
 		Ok(Self { items })
     }

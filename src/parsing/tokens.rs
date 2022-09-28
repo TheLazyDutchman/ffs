@@ -1,5 +1,3 @@
-use std::{str::Chars, iter::Peekable};
-
 use super::{Parse, ParseError, charstream::CharStream};
 
 pub trait Token: Parse {
@@ -25,9 +23,11 @@ macro_rules! create_tokens {
                     let token = stringify!($token);
                     let len = token.len();
 
+                    let mut token_value = value.clone();
+
                     let mut mtch = String::new();
                     while mtch.len() < len {
-                        mtch.push(match value.next() {
+                        mtch.push(match token_value.next() {
                             Some(value) if value.is_whitespace() => continue,
                             Some(value) => value,
                             None => break
@@ -35,6 +35,7 @@ macro_rules! create_tokens {
                     }
 
                     if (token == mtch) {
+                        value.goto(token_value.position());
                         return Ok(Self {});
                     }
 
@@ -57,9 +58,14 @@ macro_rules! create_delimiters {
                     let chr = stringify!($token).chars().nth(0).unwrap();
 
                     loop {
-                        match value.next() {
-                            Some(value) if value == chr => return Ok(Self {}),
-                            Some(value) if value.is_whitespace() => continue,
+                        match value.peek() {
+                            Some(peeked) if *peeked == chr => {
+                                value.next();
+                                return Ok(Self {})
+                            }
+                            Some(peeked) if peeked.is_whitespace() => {
+                                value.next();
+                            }
                             _ => break 
                         };
                     }
@@ -75,9 +81,14 @@ macro_rules! create_delimiters {
                 fn parse(value: &mut CharStream<'_>) -> Result<Self, ParseError> {
                     let chr = stringify!($token).chars().nth(1).unwrap();
                     loop {
-                        match value.next() {
-                            Some(value) if value == chr => return Ok(Self {}),
-                            Some(value) if value.is_whitespace() => continue,
+                        match value.peek() {
+                            Some(peeked) if *peeked == chr => {
+                                value.next();
+                                return Ok(Self {})
+                            }
+                            Some(peeked) if peeked.is_whitespace() => {
+                                value.next();
+                            }
                             _ => break
                         }
                     }

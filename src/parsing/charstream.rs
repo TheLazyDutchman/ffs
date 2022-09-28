@@ -46,6 +46,12 @@ impl<'a> CharStream<'a> {
 	pub fn position(&self) -> Position {
 		Position { column: self.column, row: self.row, index: self.index }
 	}
+
+	pub fn goto(&mut self, position: Position) {
+		while self.index < position.index {
+			self.next();
+		}
+	}
 }
 
 impl<'a> From<&'a str> for CharStream<'a> {

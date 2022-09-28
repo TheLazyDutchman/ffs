@@ -102,16 +102,17 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
                             checks.push(check);
 
                             quote! {
-                                let #value = <#ty as Parse>::parse(&mut value);
+                                let #value = <#ty as Parse>::parse(&mut enum_value);
                             }
                         }).collect::<Vec<_>>();
 
                         Ok(quote! {
                             {
-                                let mut value = value.clone();
+                                let mut enum_value = value.clone();
                                 #(#objects)*
                                 
                                 if let (#(#checks),*) = (#(#values),*) {
+                                    value.goto(enum_value.position());
                                     return ::std::result::Result::Ok(Self::#variant_ident{ #(#inputs),* })
                                 }
                             }
@@ -132,7 +133,7 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
                             });
 
                             quote! {
-                                let #value = match <#ty as Parse>::parse(&mut value.clone()) {
+                                let #value = match <#ty as Parse>::parse(&mut enum_value) {
                                     Err(parsing::ParseError::Error(error, position)) => return Err(parsing::ParseError::error(&error, position)),
                                     value => value
                                 };
@@ -141,8 +142,11 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
 
                         Ok(quote! {
                             {
+                                let mut enum_value = value.clone();
+
                                 #(#objects)*
                                 if let (#(#tests),*) = (#(#values),*) {
+                                    value.goto(enum_value.position());
                                     return ::std::result::Result::Ok(#ident::#variant_ident(#(#values),*));
                                 }
                             }
