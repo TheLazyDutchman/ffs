@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use std::fs;
 
 use parse_macro_derive::Parsable;

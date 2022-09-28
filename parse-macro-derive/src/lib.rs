@@ -78,17 +78,47 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
                 let variant_ident = &v.ident;
                 match &v.fields {
                     Fields::Named(fields) => {
-                        todo!()
+                        let fields = fields.named.iter();
+
+                        let mut values = Vec::new();
+                        let mut inputs = Vec::new();
+                        let mut checks = Vec::new();
+                        let objects = fields.map(|field| {
+                            let ty = &field.ty;
+
+                            let field_ident = &field.clone().ident.unwrap();
+                            let value = syn::Ident::new(&format!("inner_{}", field_ident), field.span());
+                            
+                            let check = quote! {
+                                ::std::result::Result::Ok(#value)
+                            };
+
+                            let input = quote! {
+                                #field_ident: #value
+                            };
+
+                            values.push(value.clone());
+                            inputs.push(input);
+                            checks.push(check);
+
+                            quote! {
+                                let #value = <#ty as Parse>::parse(&mut value);
+                            }
+                        }).collect::<Vec<_>>();
+
+                        Ok(quote! {
+                            {
+                                let mut value = value.clone();
+                                #(#objects)*
+                                
+                                if let (#(#checks),*) = (#(#values),*) {
+                                    return ::std::result::Result::Ok(Self::#variant_ident{ #(#inputs),* })
+                                }
+                            }
+                        })
                     }
                     Fields::Unnamed(fields) => {
                         let fields = fields.unnamed.iter();
-                        let types = fields.clone().map(|f| &f.ty);
-
-                        let type_objects = types.clone().map(|t| {
-                            quote! {
-                                <#t as Parse>::parse(&mut value.clone())
-                            }
-                        });
 
                         let mut values = Vec::new();
                         let mut tests = Vec::new();
