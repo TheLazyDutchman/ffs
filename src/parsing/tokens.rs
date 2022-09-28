@@ -107,6 +107,8 @@ create_tokens! {
     . Period,
     ! Bang,
     # Hash,
+    = Equal,
+    == EqualEqual,
     : Colon,
     < Less,
     > Greater,
