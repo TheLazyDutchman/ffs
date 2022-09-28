@@ -3,7 +3,7 @@
 use std::fs;
 
 use parse_macro_derive::Parsable;
-use ffs::parsing::{tokens::{Less, Greater, Equal, ForwardSlash}, Parse, ParseError, Identifier, StringValue};
+use ffs::parsing::{tokens::{Less, Greater, Equal, ForwardSlash}, Parse, self, Identifier, StringValue};
 
 #[derive(Parsable)]
 pub struct HTML {
@@ -34,5 +34,5 @@ fn main() {
     let file = fs::read_to_string("examples/html/example.html")
         .expect("Expected example file to exists.");
 
-    HTML::parse(&mut file.chars().peekable()).unwrap();
+    HTML::parse(&mut file.as_str().into()).unwrap();
 }

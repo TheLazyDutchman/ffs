@@ -1,26 +1,25 @@
 pub mod tokens;
+pub mod charstream;
 
-use std::{str::Chars, iter::Peekable};
-
-use parse_macro_derive::Parsable;
+use self::charstream::{CharStream, Position};
 
 pub trait Parse {
-	fn parse(value: &mut Peekable<Chars>) -> Result<Self, ParseError> where Self: Sized;
+	fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized;
 }
 
 #[derive(Debug)]
 pub enum ParseError {
-	NotFound(String),
-	Error(String)
+	NotFound(String, Position),
+	Error(String, Position)
 }
 
 impl ParseError {
-	pub fn not_found(cause: &str) -> ParseError {
-		ParseError::NotFound(cause.to_owned())
+	pub fn not_found(cause: &str, position: Position) -> ParseError {
+		ParseError::NotFound(cause.to_owned(), position)
 	}
 
-	pub fn error(cause: &str) -> ParseError {
-		ParseError::Error(cause.to_owned())
+	pub fn error(cause: &str, position: Position) -> ParseError {
+		ParseError::Error(cause.to_owned(), position)
 	}
 }
 
@@ -33,7 +32,7 @@ impl<D, I> Parse for Group<D, I> where
 	D: tokens::Delimiter,
 	I: Parse
 {
-    fn parse(value: &mut Peekable<Chars<'_>>) -> Result<Self, ParseError> where Self: Sized {
+    fn parse(value: &mut CharStream<'_>) -> Result<Self, ParseError> where Self: Sized {
 		let start = D::Start::parse(value)?;
 		let item = I::parse(value)?;
 		let end = D::End::parse(value)?;
@@ -52,7 +51,7 @@ impl<I, S> Parse for List<I, S> where
 	I: Parse,
 	S: tokens::Token
 {
-    fn parse(value: &mut Peekable<Chars<'_>>) -> Result<Self, ParseError> where Self: Sized {
+    fn parse(value: &mut CharStream<'_>) -> Result<Self, ParseError> where Self: Sized {
         let items = Vec::new();
 
 		Ok(Self { items })
@@ -65,7 +64,7 @@ pub struct StringValue {
 }
 
 impl Parse for StringValue {
-    fn parse(value: &mut Peekable<Chars>) -> Result<Self, ParseError> where Self: Sized {
+    fn parse(value: &mut CharStream<'_>) -> Result<Self, ParseError> where Self: Sized {
         let left = <tokens::Quote as tokens::Delimiter>::Start::parse(value)?;
 		let mut inner_value = String::new();
 
@@ -73,7 +72,7 @@ impl Parse for StringValue {
 			match value.peek() {
 				Some(value) if *value == '"' => break,
 				Some(_) => inner_value.push(value.next().unwrap()),
-				_ => return Err(ParseError::error("Could not find end of string"))
+				_ => return Err(ParseError::error("Could not find end of string", value.position()))
 			}
 		}
 
@@ -88,7 +87,7 @@ pub struct Identifier {
 }
 
 impl Parse for Identifier {
-    fn parse(value: &mut Peekable<Chars<'_>>) -> Result<Self, ParseError> {
+    fn parse(value: &mut CharStream<'_>) -> Result<Self, ParseError> {
 		let mut identifier = String::new();
 
 		loop {
@@ -99,7 +98,7 @@ impl Parse for Identifier {
 		}
 
 		if identifier.len() == 0 {
-			return Err(ParseError::not_found("Did not find identifier"));
+			return Err(ParseError::not_found("Did not find identifier", value.position()));
 		}
 
 		Ok(Self { identifier })
@@ -111,7 +110,7 @@ pub struct Number {
 }
 
 impl Parse for Number {
-    fn parse(value: &mut Peekable<Chars<'_>>) -> Result<Self, ParseError> where Self: Sized {
+    fn parse(value: &mut CharStream<'_>) -> Result<Self, ParseError> where Self: Sized {
 		let mut number = String::new();
 		
 		loop {
@@ -122,7 +121,7 @@ impl Parse for Number {
 		}
 
 		if number.len() == 0 {
-			return Err(ParseError::not_found("Did not find number."));
+			return Err(ParseError::not_found("Did not find number.", value.position()));
 		}
 
 		Ok(Number { value: number })
@@ -130,7 +129,7 @@ impl Parse for Number {
 }
 
 impl<T> Parse for Vec<T> where T: Parse {
-	fn parse(value: &mut Peekable<Chars<'_>>) -> Result<Self, ParseError> {
+	fn parse(value: &mut CharStream<'_>) -> Result<Self, ParseError> {
 		let mut vec = Vec::new();
 
 		let mut item = T::parse(value);

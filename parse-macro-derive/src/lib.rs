@@ -34,7 +34,7 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
                         quote! {
                             let #ident = match <#ty as Parse>::parse(value) {
                                 Ok(value) => value,
-                                Err(error) => return Err(ParseError::error(&format!("Could not parse {}, because: '{:?}'", stringify!(#ident), error)))
+                                Err(error) => return Err(parsing::ParseError::error(&format!("Could not parse {}, because: '{:?}'", stringify!(#ident), error), value.position()))
                             };
                         }
                     }).collect::<Vec<_>>();
@@ -133,7 +133,7 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
 
                             quote! {
                                 let #value = match <#ty as Parse>::parse(&mut value.clone()) {
-                                    Err(ParseError::Error(value)) => return Err(ParseError::error(&value)),
+                                    Err(parsing::ParseError::Error(error, position)) => return Err(parsing::ParseError::error(&error, position)),
                                     value => value
                                 };
                             }
@@ -163,7 +163,7 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
 
             quote! {
                 #(#variants)*
-                ::std::result::Result::Err(ParseError::not_found(#error))
+                ::std::result::Result::Err(parsing::ParseError::not_found(#error, value.position()))
             }
         }
         Data::Union(DataUnion {union_token, fields: _}) 
@@ -172,7 +172,7 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
 
     let gen = quote! {
         impl #generics Parse for #ident #generics {
-            fn parse(value: &mut ::std::iter::Peekable<::std::str::Chars>) -> ::std::result::Result<Self, ParseError> {
+            fn parse(value: &mut parsing::charstream::CharStream) -> ::std::result::Result<Self, parsing::ParseError> {
                 #function_body
             }
         }
