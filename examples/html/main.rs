@@ -32,5 +32,5 @@ fn main() {
     let file = fs::read_to_string("examples/html/example.html")
         .expect("Expected example file to exists.");
 
-    HTML::parse(&mut file.chars()).unwrap();
+    HTML::parse(&mut file.chars().peekable()).unwrap();
 }

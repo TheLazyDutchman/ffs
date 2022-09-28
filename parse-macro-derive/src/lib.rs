@@ -142,7 +142,7 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
 
     let gen = quote! {
         impl #generics Parse for #ident #generics {
-            fn parse(value: &mut ::std::str::Chars) -> ::std::result::Result<Self, ParseError> {
+            fn parse(value: &mut ::std::iter::Peekable<::std::str::Chars>) -> ::std::result::Result<Self, ParseError> {
                 #function_body
             }
         }

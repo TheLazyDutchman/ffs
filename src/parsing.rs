@@ -1,11 +1,11 @@
 pub mod tokens;
 
-use std::str::Chars;
+use std::{str::Chars, iter::Peekable};
 
 use parse_macro_derive::Parsable;
 
 pub trait Parse {
-	fn parse(value: &mut Chars) -> Result<Self, ParseError> where Self: Sized;
+	fn parse(value: &mut Peekable<Chars>) -> Result<Self, ParseError> where Self: Sized;
 }
 
 #[derive(Debug)]
@@ -33,7 +33,7 @@ impl<D, I> Parse for Group<D, I> where
 	D: tokens::Delimiter,
 	I: Parse
 {
-    fn parse(value: &mut Chars) -> Result<Self, ParseError> where Self: Sized {
+    fn parse(value: &mut Peekable<Chars<'_>>) -> Result<Self, ParseError> where Self: Sized {
 		let start = D::Start::parse(value)?;
 		let item = I::parse(value)?;
 		let end = D::End::parse(value)?;
@@ -52,7 +52,7 @@ impl<I, S> Parse for List<I, S> where
 	I: Parse,
 	S: tokens::Token
 {
-    fn parse(value: &mut Chars) -> Result<Self, ParseError> where Self: Sized {
+    fn parse(value: &mut Peekable<Chars<'_>>) -> Result<Self, ParseError> where Self: Sized {
         let items = Vec::new();
 
 		Ok(Self { items })
@@ -71,12 +71,12 @@ pub struct Identifier {
 }
 
 impl Parse for Identifier {
-    fn parse(value: &mut Chars) -> Result<Self, ParseError> {
+    fn parse(value: &mut Peekable<Chars<'_>>) -> Result<Self, ParseError> {
 		let mut identifier = String::new();
 
 		loop {
-		    match value.next() {
-				Some(value) if value.is_alphanumeric() => identifier.push(value),
+		    match value.peek() {
+				Some(peeked) if peeked.is_alphanumeric() => identifier.push(value.next().unwrap()),
 				_ => break
 		    }
 		}
@@ -94,7 +94,7 @@ pub struct Number {
 }
 
 impl Parse for Number {
-    fn parse(value: &mut Chars) -> Result<Self, ParseError> where Self: Sized {
+    fn parse(value: &mut Peekable<Chars<'_>>) -> Result<Self, ParseError> where Self: Sized {
 		let mut number = String::new();
 		
 		loop {
@@ -113,7 +113,7 @@ impl Parse for Number {
 }
 
 impl<T> Parse for Vec<T> where T: Parse {
-	fn parse(value: &mut Chars) -> Result<Self, ParseError> {
+	fn parse(value: &mut Peekable<Chars<'_>>) -> Result<Self, ParseError> {
 		let mut vec = Vec::new();
 
 		let mut item = T::parse(value);

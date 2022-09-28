@@ -1,4 +1,4 @@
-use std::str::Chars;
+use std::{str::Chars, iter::Peekable};
 
 use super::{Parse, ParseError};
 
@@ -21,7 +21,7 @@ macro_rules! create_tokens {
             impl Token for $id {}
             
             impl Parse for $id {
-                fn parse(value: &mut Chars) -> Result<Self, ParseError> {
+                fn parse(value: &mut Peekable<Chars<'_>>) -> Result<Self, ParseError> {
                     let token = stringify!($token);
                     let len = token.len();
 
@@ -53,7 +53,7 @@ macro_rules! create_delimiters {
             impl Token for $left {}
 
             impl Parse for $left {
-                fn parse(value: &mut Chars) -> Result<Self, ParseError> {
+                fn parse(value: &mut Peekable<Chars<'_>>) -> Result<Self, ParseError> {
                     let chr = stringify!($token).chars().nth(0).unwrap();
 
                     loop {
@@ -72,7 +72,7 @@ macro_rules! create_delimiters {
             impl Token for $right {}
 
             impl Parse for $right {
-                fn parse(value: &mut Chars) -> Result<Self, ParseError> {
+                fn parse(value: &mut Peekable<Chars<'_>>) -> Result<Self, ParseError> {
                     let chr = stringify!($token).chars().nth(1).unwrap();
                     loop {
                         match value.next() {
