@@ -119,5 +119,5 @@ create_delimiters! {
     () LeftParen RightParen Paren,
     {} LeftBrace RightBrace Brace,
     [] LeftBracket RightBracket Bracket,
-    "" Quote _LQuote Quotes
+    "" LeftQuote RightQuote Quote
 }

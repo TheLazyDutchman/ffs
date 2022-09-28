@@ -59,11 +59,28 @@ impl<I, S> Parse for List<I, S> where
     }
 }
 
-#[derive(Parsable)]
 pub struct StringValue {
-	begin: tokens::Quote,
-	value: Identifier,
-	end: tokens::Quote
+	delim: tokens::Quote,
+	value: String
+}
+
+impl Parse for StringValue {
+    fn parse(value: &mut Peekable<Chars>) -> Result<Self, ParseError> where Self: Sized {
+        let left = <tokens::Quote as tokens::Delimiter>::Start::parse(value)?;
+		let mut inner_value = String::new();
+
+		loop {
+			match value.peek() {
+				Some(value) if *value == '"' => break,
+				Some(_) => inner_value.push(value.next().unwrap()),
+				_ => return Err(ParseError::error("Could not find end of string"))
+			}
+		}
+
+		let right = <tokens::Quote as tokens::Delimiter>::End::parse(value)?;
+
+		Ok(Self { delim: tokens::Delimiter::new(left, right), value: inner_value})
+    }
 }
 
 pub struct Identifier {
@@ -98,8 +115,8 @@ impl Parse for Number {
 		let mut number = String::new();
 		
 		loop {
-		    match value.next() {
-		        Some(value) if value.is_numeric() => number.push(value),
+		    match value.peek() {
+		        Some(peeked) if peeked.is_numeric() => number.push(value.next().unwrap()),
 				_ => break
 		    }
 		}
