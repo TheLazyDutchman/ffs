@@ -1,10 +1,13 @@
 use std::{str::Chars, iter::Peekable};
 
+use super::ParseError;
+
 #[derive(Debug)]
 pub struct Position {
 	column: usize,
 	row: usize,
-	index: usize
+	index: usize,
+	buffer: String
 }
 
 #[derive(Debug, Clone)]
@@ -44,13 +47,23 @@ impl<'a> CharStream<'a> {
 	}
 
 	pub fn position(&self) -> Position {
-		Position { column: self.column, row: self.row, index: self.index }
+		Position { column: self.column, row: self.row, index: self.index, buffer: self.buffer.clone() }
 	}
 
-	pub fn goto(&mut self, position: Position) {
+	pub fn goto(&mut self, position: Position) -> Result<(), ParseError> {
+		if self.buffer != position.buffer {
+			return Err(ParseError::error("Could not go to position in different buffer.", position));
+		}
+
+		if position.index < self.index {
+			return Err(ParseError::error("Charstream does not support going back.", position));
+		}
+
 		while self.index < position.index {
 			self.next();
 		}
+
+		Ok(())
 	}
 }
 

@@ -112,7 +112,7 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
                                 #(#objects)*
                                 
                                 if let (#(#checks),*) = (#(#values),*) {
-                                    value.goto(enum_value.position());
+                                    value.goto(enum_value.position())?;
                                     return ::std::result::Result::Ok(Self::#variant_ident{ #(#inputs),* })
                                 }
                             }
@@ -146,7 +146,7 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
 
                                 #(#objects)*
                                 if let (#(#tests),*) = (#(#values),*) {
-                                    value.goto(enum_value.position());
+                                    value.goto(enum_value.position())?;
                                     return ::std::result::Result::Ok(#ident::#variant_ident(#(#values),*));
                                 }
                             }

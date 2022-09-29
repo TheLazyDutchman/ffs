@@ -35,7 +35,7 @@ macro_rules! create_tokens {
                     }
 
                     if (token == mtch) {
-                        value.goto(token_value.position());
+                        value.goto(token_value.position())?;
                         return Ok(Self {});
                     }
 
