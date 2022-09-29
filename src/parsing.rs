@@ -1,13 +1,14 @@
 pub mod tokens;
 pub mod charstream;
 
+use std::fmt::{Display, self};
+
 use self::charstream::{CharStream, Position};
 
 pub trait Parse {
 	fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized;
 }
 
-#[derive(Debug)]
 pub enum ParseError {
 	NotFound(String, Position),
 	Error(String, Position)
@@ -21,6 +22,15 @@ impl ParseError {
 	pub fn error(cause: &str, position: Position) -> ParseError {
 		ParseError::Error(cause.to_owned(), position)
 	}
+}
+
+impl fmt::Debug for ParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+			Self::NotFound(cause, position) => write!(f, "{}:{}:NotFound: '{}'", position.row, position.column, cause),
+			Self::Error(cause, position) => write!(f, "{}:{}:Error: '{}'", position.row, position.column, cause)
+        }
+    }
 }
 
 pub struct Group<D, I> {

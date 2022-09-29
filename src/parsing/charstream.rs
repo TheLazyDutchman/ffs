@@ -4,10 +4,10 @@ use super::ParseError;
 
 #[derive(Debug)]
 pub struct Position {
-	column: usize,
-	row: usize,
-	index: usize,
-	buffer: String
+	pub column: usize,
+	pub	row: usize,
+	pub	index: usize,
+	pub	buffer: String
 }
 
 #[derive(Debug, Clone)]
