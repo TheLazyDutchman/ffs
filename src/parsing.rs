@@ -1,7 +1,7 @@
 pub mod tokens;
 pub mod charstream;
 
-use std::fmt::{Display, self};
+use std::fmt;
 
 use self::charstream::{CharStream, Position};
 
@@ -21,6 +21,13 @@ impl ParseError {
 
 	pub fn error(cause: &str, position: Position) -> ParseError {
 		ParseError::Error(cause.to_owned(), position)
+	}
+
+	pub fn to_error(self, message: &str) -> Self {
+		match self {
+			Self::NotFound(cause, position) => ParseError::Error(format!("{}: {}", message, cause), position),
+			Self::Error(cause, position) => ParseError::Error(cause, position)
+		}
 	}
 }
 
@@ -42,13 +49,15 @@ impl<D, I> Parse for Group<D, I> where
 	D: tokens::Delimiter,
 	I: Parse
 {
-    fn parse(value: &mut CharStream<'_>) -> Result<Self, ParseError> where Self: Sized {
+    fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
 		let start = D::Start::parse(value)?;
-		let item = I::parse(value)?;
+		let item = match I::parse(value) {
+			Ok(value) => value,
+			Err(err) => return Err(err.to_error("Could not parse group"))
+		};
 		let end = match D::End::parse(value) {
 			Ok(value) => value,
-			Err(ParseError::Error(cause, position)) => return Err(ParseError::error(&cause, position)),
-			Err(ParseError::NotFound(cause, position)) => return Err(ParseError::error(&format!("Could not parse group, because: {}", cause), position))
+			Err(err) => return Err(err.to_error("Could not parse group"))
 		};
 
 		let delimiter = D::new(start, end);
@@ -65,7 +74,7 @@ impl<I, S> Parse for List<I, S> where
 	I: Parse,
 	S: tokens::Token
 {
-    fn parse(value: &mut CharStream<'_>) -> Result<Self, ParseError> where Self: Sized {
+    fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
         let mut items = Vec::new();
 
 		loop {
@@ -100,7 +109,7 @@ pub struct StringValue {
 }
 
 impl Parse for StringValue {
-    fn parse(value: &mut CharStream<'_>) -> Result<Self, ParseError> where Self: Sized {
+    fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
         let left = <tokens::Quote as tokens::Delimiter>::Start::parse(value)?;
 		let mut inner_value = String::new();
 
@@ -123,7 +132,7 @@ pub struct Identifier {
 }
 
 impl Parse for Identifier {
-    fn parse(value: &mut CharStream<'_>) -> Result<Self, ParseError> {
+    fn parse(value: &mut CharStream) -> Result<Self, ParseError> {
 		let mut identifier = String::new();
 
 		loop {
@@ -146,7 +155,7 @@ pub struct Number {
 }
 
 impl Parse for Number {
-    fn parse(value: &mut CharStream<'_>) -> Result<Self, ParseError> where Self: Sized {
+    fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
 		let mut number = String::new();
 		
 		loop {
@@ -165,7 +174,7 @@ impl Parse for Number {
 }
 
 impl<T> Parse for Vec<T> where T: Parse {
-	fn parse(value: &mut CharStream<'_>) -> Result<Self, ParseError> {
+	fn parse(value: &mut CharStream) -> Result<Self, ParseError> {
 		let mut vec = Vec::new();
 
 		let mut item = T::parse(value);
