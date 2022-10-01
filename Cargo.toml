@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 parse-macro-derive = {path = "parse-macro-derive"}
+rand = "0.8.0"

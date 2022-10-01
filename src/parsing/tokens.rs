@@ -14,16 +14,18 @@ pub trait Delimiter {
 macro_rules! create_tokens {
     ($($token:tt $id:ident),+) => {
         $(
+            #[derive(Debug)]
             pub struct $id;
             
             impl Token for $id {}
             
             impl Parse for $id {
-                fn parse(value: &mut CharStream) -> Result<Self, ParseError> {
+                fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
                     let token = stringify!($token);
                     let len = token.len();
 
                     let mut token_value = value.clone();
+                    let mut token_value = token_value.get_chunk()?;
 
                     let mut mtch = String::new();
                     while mtch.len() < len {
@@ -39,7 +41,7 @@ macro_rules! create_tokens {
                         return Ok(Self {});
                     }
 
-                    Err(ParseError::not_found(concat!("Could not find token '", stringify!($token), "'."), value.position()))
+                    Err(ParseError::not_found(concat!("Could not find token '", stringify!($token), "'."), token_value.position()))
                 }
             }
         )+
@@ -49,53 +51,59 @@ macro_rules! create_tokens {
 macro_rules! create_delimiters {
     ($($token:tt $left: ident $right: ident $delim:ident),+) => {
         $(
+            #[derive(Debug)]
             pub struct $left;
 
             impl Token for $left {}
 
             impl Parse for $left {
-                fn parse(value: &mut CharStream) -> Result<Self, ParseError> {
+                fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
                     let chr = stringify!($token).chars().nth(0).unwrap();
+                    let mut chunk = value.get_chunk()?;
 
                     loop {
-                        match value.peek() {
+                        match chunk.peek() {
                             Some(peeked) if *peeked == chr => {
-                                value.next();
+                                chunk.next();
                                 return Ok(Self {})
                             }
                             Some(peeked) if peeked.is_whitespace() => {
-                                value.next();
+                                chunk.next();
                             }
                             _ => break 
                         };
                     }
-                    Err(ParseError::not_found(concat!("could not find left side of: '", stringify!($token), "'."), value.position()))
+                    Err(ParseError::not_found(concat!("could not find left side of: '", stringify!($token), "'."), chunk.position()))
                 }
             }
 
+            #[derive(Debug)]
             pub struct $right;
 
             impl Token for $right {}
 
             impl Parse for $right {
-                fn parse(value: &mut CharStream) -> Result<Self, ParseError> {
+                fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
                     let chr = stringify!($token).chars().nth(1).unwrap();
+                    let mut chunk = value.get_chunk()?;
+                    
                     loop {
-                        match value.peek() {
+                        match chunk.peek() {
                             Some(peeked) if *peeked == chr => {
-                                value.next();
+                                chunk.next();
                                 return Ok(Self {})
                             }
                             Some(peeked) if peeked.is_whitespace() => {
-                                value.next();
+                                chunk.next();
                             }
                             _ => break
                         }
                     }
-                    Err(ParseError::not_found(concat!("could not parse right side of: '", stringify!($token), "'."), value.position()))
+                    Err(ParseError::not_found(concat!("could not parse right side of: '", stringify!($token), "'."), chunk.position()))
                 }
             }
 
+            #[derive(Debug)]
             pub struct $delim {
                 start: $left,
                 end: $right

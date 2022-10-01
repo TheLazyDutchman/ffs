@@ -5,32 +5,32 @@ use std::fs;
 use parse_macro_derive::Parsable;
 use ffs::parsing::{self, Group, List, tokens::{Bracket, Comma, Brace, Colon}, Number, StringValue, Parse, charstream::CharStream};
 
-#[derive(Parsable)]
+#[derive(Debug, Parsable)]
 pub struct JSONList {
 	list: Group<Bracket,
 		List<JSONNode, Comma>>
 }
 
-#[derive(Parsable)]
+#[derive(Debug, Parsable)]
 pub struct NamedValue {
 	name: StringValue,
 	colon: Colon,
 	value: JSONNode
 }
 
-#[derive(Parsable)]
+#[derive(Debug, Parsable)]
 pub struct JSONObject {
 	map: Group<Brace,
 		List<NamedValue, Comma>>
 }
 
-#[derive(Parsable)]
+#[derive(Debug, Parsable)]
 pub enum Value {
 	String(StringValue),
 	Number(Number)
 }
 
-#[derive(Parsable)]
+#[derive(Debug, Parsable)]
 pub enum JSONNode {
 	List(JSONList),
 	Object(JSONObject),
@@ -40,5 +40,8 @@ pub enum JSONNode {
 fn main() {
 	let file = fs::read_to_string("examples/json/example.json")
 		.expect("Expected example file to exist.");
-	JSONNode::parse(&mut file.as_str().into()).unwrap();
+
+	let mut buffer = CharStream::new(file).build();
+	let value = JSONNode::parse(&mut buffer);
+	println!("value: {:?}", value);
 }

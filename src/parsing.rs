@@ -9,6 +9,7 @@ pub trait Parse {
 	fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized;
 }
 
+#[derive(Clone)]
 pub enum ParseError {
 	NotFound(String, Position),
 	Error(String, Position)
@@ -40,6 +41,7 @@ impl fmt::Debug for ParseError {
     }
 }
 
+#[derive(Debug)]
 pub struct Group<D, I> {
 	delimiter: D,
 	item: I
@@ -66,6 +68,7 @@ impl<D, I> Parse for Group<D, I> where
     }
 }
 
+#[derive(Debug)]
 pub struct List<I, S> {
 	items: Vec<(I, Option<S>)>
 }
@@ -74,7 +77,7 @@ impl<I, S> Parse for List<I, S> where
 	I: Parse,
 	S: tokens::Token
 {
-    fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
+	fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
         let mut items = Vec::new();
 
 		loop {
@@ -103,21 +106,27 @@ impl<I, S> Parse for List<I, S> where
     }
 }
 
+#[derive(Debug)]
 pub struct StringValue {
 	delim: tokens::Quote,
 	value: String
 }
 
 impl Parse for StringValue {
-    fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
+	fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
         let left = <tokens::Quote as tokens::Delimiter>::Start::parse(value)?;
 		let mut inner_value = String::new();
 
 		loop {
-			match value.peek() {
+			let mut chunk = match value.get_chunk() {
+				Ok(chunk) => chunk,
+				Err(_) => return Err(ParseError::error("Could not find end of string", value.position()?))
+			};
+
+			match chunk.peek() {
 				Some(value) if *value == '"' => break,
-				Some(_) => inner_value.push(value.next().unwrap()),
-				_ => return Err(ParseError::error("Could not find end of string", value.position()))
+				Some(_) => inner_value.push(chunk.next().unwrap()),
+				_ => break
 			}
 		}
 
@@ -132,41 +141,44 @@ pub struct Identifier {
 }
 
 impl Parse for Identifier {
-    fn parse(value: &mut CharStream) -> Result<Self, ParseError> {
+	fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
+		let mut chunk = value.get_chunk()?;
 		let mut identifier = String::new();
 
 		loop {
-		    match value.peek() {
-				Some(peeked) if peeked.is_alphanumeric() => identifier.push(value.next().unwrap()),
+		    match chunk.peek() {
+				Some(peeked) if peeked.is_alphanumeric() => identifier.push(chunk.next().unwrap()),
 				_ => break
 		    }
 		}
 
 		if identifier.len() == 0 {
-			return Err(ParseError::not_found("Did not find identifier", value.position()));
+			return Err(ParseError::not_found("Did not find identifier", chunk.position()));
 		}
 
 		Ok(Self { identifier })
     }
 }
 
+#[derive(Debug)]
 pub struct Number {
 	value: String
 }
 
 impl Parse for Number {
-    fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
+	fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
+		let mut chunk = value.get_chunk()?;
 		let mut number = String::new();
 		
 		loop {
-		    match value.peek() {
-		        Some(peeked) if peeked.is_numeric() => number.push(value.next().unwrap()),
+		    match chunk.peek() {
+		        Some(peeked) if peeked.is_numeric() => number.push(chunk.next().unwrap()),
 				_ => break
 		    }
 		}
 
 		if number.len() == 0 {
-			return Err(ParseError::not_found("Did not find number.", value.position()));
+			return Err(ParseError::not_found("Did not find number.", chunk.position()));
 		}
 
 		Ok(Number { value: number })
@@ -174,7 +186,7 @@ impl Parse for Number {
 }
 
 impl<T> Parse for Vec<T> where T: Parse {
-	fn parse(value: &mut CharStream) -> Result<Self, ParseError> {
+	fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
 		let mut vec = Vec::new();
 
 		let mut item = T::parse(value);

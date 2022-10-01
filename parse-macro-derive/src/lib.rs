@@ -34,7 +34,7 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
                         quote! {
                             let #ident = match <#ty as Parse>::parse(value) {
                                 Ok(value) => value,
-                                Err(error) => return Err(parsing::ParseError::error(&format!("Could not parse {}, because: '{:?}'", stringify!(#ident), error), value.position()))
+                                Err(error) => return Err(parsing::ParseError::error(&format!("Could not parse {}, because: '{:?}'", stringify!(#ident), error), value.position()?))
                             };
                         }
                     }).collect::<Vec<_>>();
@@ -112,7 +112,7 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
                                 #(#objects)*
                                 
                                 if let (#(#checks),*) = (#(#values),*) {
-                                    value.goto(enum_value.position())?;
+                                    value.goto(enum_value.position()?)?;
                                     return ::std::result::Result::Ok(Self::#variant_ident{ #(#inputs),* })
                                 }
                             }
@@ -146,7 +146,7 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
 
                                 #(#objects)*
                                 if let (#(#tests),*) = (#(#values),*) {
-                                    value.goto(enum_value.position())?;
+                                    value.goto(enum_value.position()?)?;
                                     return ::std::result::Result::Ok(#ident::#variant_ident(#(#values),*));
                                 }
                             }
@@ -167,7 +167,7 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
 
             quote! {
                 #(#variants)*
-                ::std::result::Result::Err(parsing::ParseError::not_found(#error, value.position()))
+                ::std::result::Result::Err(parsing::ParseError::not_found(#error, value.position()?))
             }
         }
         Data::Union(DataUnion {union_token, fields: _}) 
