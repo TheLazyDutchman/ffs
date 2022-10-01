@@ -1,10 +1,13 @@
 [package]
-name = "ffs"
+name = "parse-macro-derive"
 version = "0.1.0"
 edition = "2021"
+
+[lib]
+proc-macro=true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-parse-macro-derive = {path = "parse-macro-derive"}
-rand = "0.8.0"
+quote="1.0.0"
+syn="1.0.0"
