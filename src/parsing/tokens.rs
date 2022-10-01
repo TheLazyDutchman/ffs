@@ -25,7 +25,7 @@ macro_rules! create_tokens {
                     let len = token.len();
 
                     let mut token_value = value.clone();
-                    let mut token_value = token_value.get_chunk()?;
+                    let token_value = token_value.get_chunk()?;
 
                     let mut mtch = String::new();
                     while mtch.len() < len {
@@ -59,7 +59,7 @@ macro_rules! create_delimiters {
             impl Parse for $left {
                 fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
                     let chr = stringify!($token).chars().nth(0).unwrap();
-                    let mut chunk = value.get_chunk()?;
+                    let chunk = value.get_chunk()?;
 
                     loop {
                         match chunk.peek() {
@@ -85,7 +85,7 @@ macro_rules! create_delimiters {
             impl Parse for $right {
                 fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
                     let chr = stringify!($token).chars().nth(1).unwrap();
-                    let mut chunk = value.get_chunk()?;
+                    let chunk = value.get_chunk()?;
                     
                     loop {
                         match chunk.peek() {

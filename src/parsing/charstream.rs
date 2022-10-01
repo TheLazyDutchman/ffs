@@ -157,12 +157,12 @@ impl CharStream {
 
 	pub fn get_chunk(&mut self) -> Result<&mut Chunk, ParseError> {
 		if self.chunk_index >= self.chunks.len() {
-			return Err(ParseError::error("Reached end of file.", self.position()?))
+			return Err(ParseError::EOF(self.eof.clone()));
 		}
 		if self.chunks[self.chunk_index].is_done() {
 			self.chunk_index += 1;
 			if self.chunk_index >= self.chunks.len() {
-				return Err(ParseError::error("Reached end of file.", self.eof.clone()))
+				return Err(ParseError::EOF(self.eof.clone()));
 			}
 		}
 
@@ -170,7 +170,11 @@ impl CharStream {
 	}
 
 	pub fn position(&mut self) -> Result<Position, ParseError> {
-		Ok(self.get_chunk()?.position())
+		match self.get_chunk() {
+			Ok(chunk) => Ok(chunk.position()),
+			Err(ParseError::EOF(position)) => Ok(position),
+			Err(error) => Err(error)
+		}
 	}
 
 	pub fn goto(&mut self, position: Position) -> Result<(), ParseError> {

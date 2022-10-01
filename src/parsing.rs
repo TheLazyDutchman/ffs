@@ -12,7 +12,8 @@ pub trait Parse {
 #[derive(Clone)]
 pub enum ParseError {
 	NotFound(String, Position),
-	Error(String, Position)
+	Error(String, Position),
+	EOF(Position)
 }
 
 impl ParseError {
@@ -27,7 +28,8 @@ impl ParseError {
 	pub fn to_error(self, message: &str) -> Self {
 		match self {
 			Self::NotFound(cause, position) => ParseError::Error(format!("{}: {}", message, cause), position),
-			Self::Error(cause, position) => ParseError::Error(cause, position)
+			Self::Error(cause, position) => ParseError::Error(cause, position),
+			Self::EOF(position) => ParseError::Error(format!("{}: {}", message, "Reached end of file"), position)
 		}
 	}
 }
@@ -36,7 +38,8 @@ impl fmt::Debug for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
 			Self::NotFound(cause, position) => write!(f, "{}:{}:NotFound: '{}'", position.row, position.column, cause),
-			Self::Error(cause, position) => write!(f, "{}:{}:Error: '{}'", position.row, position.column, cause)
+			Self::Error(cause, position) => write!(f, "{}:{}:Error: '{}'", position.row, position.column, cause),
+			Self::EOF(position) => write!(f, "{}:{}: {}", position.row, position.column, "Reached end of file.")
         }
     }
 }
@@ -118,7 +121,7 @@ impl Parse for StringValue {
 		let mut inner_value = String::new();
 
 		loop {
-			let mut chunk = match value.get_chunk() {
+			let chunk = match value.get_chunk() {
 				Ok(chunk) => chunk,
 				Err(_) => return Err(ParseError::error("Could not find end of string", value.position()?))
 			};
@@ -142,7 +145,7 @@ pub struct Identifier {
 
 impl Parse for Identifier {
 	fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
-		let mut chunk = value.get_chunk()?;
+		let chunk = value.get_chunk()?;
 		let mut identifier = String::new();
 
 		loop {
@@ -167,7 +170,7 @@ pub struct Number {
 
 impl Parse for Number {
 	fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
-		let mut chunk = value.get_chunk()?;
+		let chunk = value.get_chunk()?;
 		let mut number = String::new();
 		
 		loop {
