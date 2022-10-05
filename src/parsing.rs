@@ -1,7 +1,7 @@
 pub mod tokens;
 pub mod charstream;
 
-use std::fmt;
+use std::fmt::{Display, self};
 
 use self::{charstream::{CharStream, Position, WhitespaceType, Span}, tokens::Delimiter};
 
@@ -56,13 +56,10 @@ impl<D, I> Parse for Group<D, I> where
 {
     fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
 		let start = D::Start::parse(value)?;
-		let item = match I::parse(value) {
-			Ok(value) => value,
-			Err(err) => return Err(err.to_error("Could not parse group"))
-		};
+		let item = I::parse(value)?;
 		let end = match D::End::parse(value) {
 			Ok(value) => value,
-			Err(err) => return Err(err.to_error("Could not parse group"))
+			Err(error) => return Err(error.to_error("Could not parse group"))
 		};
 
 		let delimiter = D::new(start, end);
