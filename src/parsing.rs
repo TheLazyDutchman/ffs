@@ -118,24 +118,32 @@ pub struct StringValue {
 impl Parse for StringValue {
 	fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
 		let left = <tokens::Quote as tokens::Delimiter>::Start::parse(value)?;
-		value.set_whitespace(WhitespaceType::KeepAll);
 		let mut inner_value = String::new();
 
+		let mut string_value = value.clone();
+
+		let mut position = string_value.position();
+
+		string_value.set_whitespace(WhitespaceType::KeepAll);
 		loop {
-			match value.peek() {
-				Some(value) if *value == '"' => break,
-				Some(_) => inner_value.push(value.next().unwrap()),
+			match string_value.next() {
+				Some(value) if value != '"' => {
+					inner_value.push(value);
+					position = string_value.position();
+				}
 				_ => break
 			}
 		}
+
+		value.goto(position)?;
 		
 		let right = <tokens::Quote as tokens::Delimiter>::End::parse(value)?;
-		value.set_whitespace(WhitespaceType::Ignore);
 
 		Ok(Self { delim: tokens::Delimiter::new(left, right), value: inner_value})
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Identifier {
 	identifier: String
 }
@@ -144,15 +152,27 @@ impl Parse for Identifier {
 	fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
 		let mut identifier = String::new();
 
-		loop {
-		    match value.peek() {
-				Some(peeked) if peeked.is_alphanumeric() => identifier.push(value.next().unwrap()),
-				_ => break
-		    }
-		}
+		let mut ident_value = value.clone();
+		match ident_value.next() {
+			Some(chr) if chr.is_alphabetic() => {
+				let mut position = ident_value.position();
+				identifier.push(chr);
 
-		if identifier.len() == 0 {
-			return Err(ParseError::not_found("Did not find identifier", value.position()));
+				ident_value.set_whitespace(WhitespaceType::KeepAll);
+
+				loop {
+					match ident_value.next() {
+						Some(value) if value.is_alphanumeric() => {
+							identifier.push(value);
+							position = ident_value.position();
+						}
+						_ => break
+					}
+				}
+
+				value.goto(position)?;
+			}
+			_ => return Err(ParseError::not_found("Did not find identifier", ident_value.position()))
 		}
 
 		Ok(Self { identifier })
@@ -168,16 +188,29 @@ impl Parse for Number {
 	fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
 		let mut number = String::new();
 		
-		loop {
-		    match value.peek() {
-		        Some(peeked) if peeked.is_numeric() => number.push(value.next().unwrap()),
-				_ => break
-		    }
+		let mut num_value = value.clone();
+		match num_value.next() {
+			Some(chr) if chr.is_numeric() => {
+				let mut position = num_value.position();
+				number.push(chr);
+
+				num_value.set_whitespace(WhitespaceType::KeepAll);
+
+				loop {
+					match num_value.next() {
+						Some(value) if value.is_numeric() => {
+							number.push(value);
+							position = num_value.position();
+						}
+						_ => break
+					}
+				}
+
+				value.goto(position)?;
+			}
+			_ => return Err(ParseError::not_found("Did not find number", num_value.position()))
 		}
 
-		if number.len() == 0 {
-			return Err(ParseError::not_found("Did not find number.", value.position()));
-		}
 
 		Ok(Number { value: number })
     }

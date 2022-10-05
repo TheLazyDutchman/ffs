@@ -1,4 +1,4 @@
-use std::{iter::Peekable, vec::IntoIter};
+use std::vec::IntoIter;
 use rand::random;
 
 use super::ParseError;
@@ -27,7 +27,7 @@ impl Position {
 			}
 		}
 
-		Self { column, row, index: value.len() - 1, file, file_id }
+		Self { column, row, index: value.len(), file, file_id }
 	}
 }
 
@@ -70,21 +70,20 @@ impl CharStreamBuilder {
 
 	pub fn build(&mut self) -> CharStream {
 		let buffer = self.buffer.clone();
-		let chars = buffer.chars().collect::<Vec<_>>().into_iter().peekable();
+		let chars = buffer.chars().collect::<Vec<_>>().into_iter();
 		let file = self.file.clone();
 		let eof = Position::end(&buffer, file.clone(), self.file_id);
 
 
-		CharStream { chars, file, file_id: self.file_id, previous: None, column: 0, row: 0, index: 0, eof, whitespace: WhitespaceType::Ignore }
+		CharStream { chars, file, file_id: self.file_id, column: 0, row: 0, index: 0, eof, whitespace: WhitespaceType::Ignore }
 	}
 }
 
 #[derive(Debug, Clone)]
 pub struct CharStream {
-	chars: Peekable<IntoIter<char>>,
+	chars: IntoIter<char>,
 	file: Option<String>,
 	file_id: u32,
-	pub previous: Option<char>,
 	column: usize,
 	row: usize,
 	index: usize,
@@ -102,39 +101,35 @@ impl CharStream {
 	}
 
 	pub fn next(&mut self) -> Option<char> {
-		match self.previous {
+		let chr = match self.chars.next() {
 			Some('\n') => {
 				self.index += 1;
 				self.column = 0;
 				self.row += 1;
+				Some('\n')
 			}
-			Some(_) => {
+			Some(value) => {
 				self.index += 1;
 				self.column += 1;
+				Some(value)
 			}
-			None => {}
-		}
-
-		self.previous = self.chars.next();
+			None => None
+		};
 
 		match self.whitespace {
 			WhitespaceType::Ignore => {
-				match self.previous {
+				match chr {
 					Some(c) if c.is_whitespace() => {
 						self.next()
 					}
 					c => c,
 				}
 			}
-			WhitespaceType::KeepAll => self.previous,
+			WhitespaceType::KeepAll => chr,
 			WhitespaceType::Indent => {
 				todo!()
 			}
 		}
-	}
-
-	pub fn peek(&mut self) -> Option<&char> {
-		self.chars.peek()
 	}
 
 	pub fn goto(&mut self, position: Position) -> Result<(), ParseError> {

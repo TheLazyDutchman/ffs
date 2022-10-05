@@ -60,15 +60,13 @@ macro_rules! create_delimiters {
                     let chr = stringify!($token).chars().nth(0).unwrap();
                     let mut token_value = value.clone();
 
-                    loop {
-                        match token_value.next() {
-                            Some(token) if token == chr => {
-                                value.goto(token_value.position())?;
-                                return Ok(Self {})
-                            }
-                            _ => break 
-                        };
+                    if let Some(token) = token_value.next() {
+                        if token == chr {
+                            value.goto(token_value.position())?;
+                            return Ok(Self {})
+                        }
                     }
+
                     Err(ParseError::not_found(concat!("could not find left side of: '", stringify!($token), "'."), value.position()))
                 }
             }
@@ -82,17 +80,16 @@ macro_rules! create_delimiters {
                 fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
                     let chr = stringify!($token).chars().nth(1).unwrap();
                     let mut token_value = value.clone();
-                    
-                    loop {
-                        match token_value.next() {
-                            Some(token) if token == chr => {
-                                value.goto(token_value.position())?;
-                                return Ok(Self {})
-                            }
-                            _ => break
+
+                    if let Some(token) = token_value.next() {
+                        println!("end {}", chr);
+                        if token == chr {
+                            value.goto(token_value.position())?;
+                            return Ok(Self {})
                         }
                     }
-                    Err(ParseError::error(concat!("could not parse right side of: '", stringify!($token), "'."), value.position()))
+
+                    Err(ParseError::not_found(concat!("could not find right side of: '", stringify!($token), "'."), value.position()))
                 }
             }
 
