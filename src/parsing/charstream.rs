@@ -27,7 +27,7 @@ impl Position {
 			}
 		}
 
-		Self { column, row, index: value.len() - 1, file, file_id}
+		Self { column, row, index: value.len() - 1, file, file_id }
 	}
 }
 
@@ -51,54 +51,6 @@ impl PartialOrd for Position {
 }
 
 
-#[derive(Debug, Clone)]
-pub struct Chunk {
-	buffer: Peekable<IntoIter<char>>,
-	length: usize,
-	index: usize,
-	row: usize,
-	column: usize,
-	start_index: usize,
-	file: Option<String>,
-	file_id: u32
-}
-
-impl Chunk {
-	pub fn new(buffer: String, row: usize, column: usize, start_index: usize, file: Option<String>, file_id: u32) -> Chunk {
-		let length = buffer.len();
-		let buffer = buffer.clone().chars().collect::<Vec<_>>();
-		let buffer = buffer.into_iter().peekable();
-		Chunk { buffer, length, index: 0, row, column, start_index, file, file_id }
-	}
-
-	pub fn is_done(&self) -> bool {
-		self.index >= self.length
-	}
-
-	pub fn position(&self) -> Position {
-		Position { column: self.column, row: self.row, index: self.start_index + self.index, file: self.file.clone(), file_id: self.file_id }
-	}
-
-	pub fn next(&mut self) -> Option<char> {
-		self.index += 1;
-		self.column += 1;
-
-		let chr = self.buffer.next();
-		match chr {
-			Some(chr) if chr == '\n' => {
-				self.column = 0;
-				self.row += 1;
-				Some(chr)
-			}
-			chr => chr
-		}
-	}
-
-	pub fn peek(&mut self) -> Option<&char> {
-		self.buffer.peek()
-	}
-}
-
 pub struct CharStreamBuilder {
 	buffer: String,
 	usewhitespace: bool,
@@ -113,40 +65,25 @@ impl CharStreamBuilder {
 
 	pub fn build(&mut self) -> CharStream {
 		let buffer = self.buffer.clone();
+		let chars = buffer.chars().collect::<Vec<_>>().into_iter().peekable();
 		let file = self.file.clone();
 		let eof = Position::end(&buffer, file.clone(), self.file_id);
 
-		let mut row = 0;
-		let mut column = 0;
-		let mut start_index = 0;
 
-		let chunks = buffer.split_inclusive(|c: char| c.is_whitespace()).map(|chunk| {
-			let mut chunk = chunk.to_owned();
-			for c in chunk.chars() {
-				column += 1;
-				if c == '\n' {
-					row += 1;
-					column = 0;
-				}
-			}
-			start_index += chunk.len();
-
-			if !self.usewhitespace {
-				chunk = chunk.trim().to_string();
-			}
-
-			Chunk::new(chunk, row, column, start_index, file.clone(), self.file_id)
-		}).collect();
-		CharStream { buffer, chunks, chunk_index: 0, file_id: self.file_id, eof }
+		CharStream { buffer, chars, file, file_id: self.file_id, previous: None, column: 0, row: 0, index: 0, eof }
 	}
 }
 
 #[derive(Debug, Clone)]
 pub struct CharStream {
 	buffer: String,
-	chunks: Vec<Chunk>,
-	chunk_index: usize,
+	chars: Peekable<IntoIter<char>>,
+	file: Option<String>,
 	file_id: u32,
+	previous: Option<char>,
+	column: usize,
+	row: usize,
+	index: usize,
 	eof: Position
 }
 
@@ -155,26 +92,38 @@ impl CharStream {
 		CharStreamBuilder::new(value)
 	}
 
-	pub fn get_chunk(&mut self) -> Result<&mut Chunk, ParseError> {
-		if self.chunk_index >= self.chunks.len() {
-			return Err(ParseError::EOF(self.eof.clone()));
-		}
-		if self.chunks[self.chunk_index].is_done() {
-			self.chunk_index += 1;
-			if self.chunk_index >= self.chunks.len() {
-				return Err(ParseError::EOF(self.eof.clone()));
-			}
-		}
-
-		Ok(&mut self.chunks[self.chunk_index])
+	pub fn position(&self) -> Position {
+		Position { column: self.column, row: self.row, index: self.index, file: self.file.clone(), file_id: self.file_id }
 	}
 
-	pub fn position(&mut self) -> Result<Position, ParseError> {
-		match self.get_chunk() {
-			Ok(chunk) => Ok(chunk.position()),
-			Err(ParseError::EOF(position)) => Ok(position),
-			Err(error) => Err(error)
+	pub fn next(&mut self) -> Option<char> {
+		match self.previous {
+			Some('\n') => {
+				self.index += 1;
+				self.column = 0;
+				self.row += 1;
+			}
+			Some(c) => {
+				self.index += 1;
+				self.column += 1;
+			}
+			None => {}
 		}
+
+		self.previous = match self.chars.next() {
+			Some('\n') => {
+				self.row += 1;
+				self.column = 0;
+				Some('\n')
+			}
+			c => c
+		};
+
+		self.previous
+	}
+
+	pub fn peek(&mut self) -> Option<&char> {
+		self.chars.peek()
 	}
 
 	pub fn goto(&mut self, position: Position) -> Result<(), ParseError> {
@@ -182,7 +131,7 @@ impl CharStream {
 			return Err(ParseError::error("Could not go to position in different buffer.", position));
 		}
 
-		if position < self.position()? {
+		if position < self.position() {
 			return Err(ParseError::error("Charstream does not support going back.", position));
 		}
 
@@ -190,8 +139,8 @@ impl CharStream {
 			return Err(ParseError::error("Charstream can not go to position after end of buffer.", self.eof.clone()));
 		}
 
-		while self.position()? < position {
-			self.get_chunk()?.next();
+		while self.position() < position {
+			self.next();
 		}
 
 		Ok(())

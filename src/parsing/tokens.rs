@@ -25,7 +25,6 @@ macro_rules! create_tokens {
                     let len = token.len();
 
                     let mut token_value = value.clone();
-                    let token_value = token_value.get_chunk()?;
 
                     let mut mtch = String::new();
                     while mtch.len() < len {
@@ -59,21 +58,20 @@ macro_rules! create_delimiters {
             impl Parse for $left {
                 fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
                     let chr = stringify!($token).chars().nth(0).unwrap();
-                    let chunk = value.get_chunk()?;
 
                     loop {
-                        match chunk.peek() {
+                        match value.peek() {
                             Some(peeked) if *peeked == chr => {
-                                chunk.next();
+                                value.next();
                                 return Ok(Self {})
                             }
                             Some(peeked) if peeked.is_whitespace() => {
-                                chunk.next();
+                                value.next();
                             }
                             _ => break 
                         };
                     }
-                    Err(ParseError::not_found(concat!("could not find left side of: '", stringify!($token), "'."), chunk.position()))
+                    Err(ParseError::not_found(concat!("could not find left side of: '", stringify!($token), "'."), value.position()))
                 }
             }
 
@@ -85,21 +83,20 @@ macro_rules! create_delimiters {
             impl Parse for $right {
                 fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
                     let chr = stringify!($token).chars().nth(1).unwrap();
-                    let chunk = value.get_chunk()?;
                     
                     loop {
-                        match chunk.peek() {
+                        match value.peek() {
                             Some(peeked) if *peeked == chr => {
-                                chunk.next();
+                                value.next();
                                 return Ok(Self {})
                             }
                             Some(peeked) if peeked.is_whitespace() => {
-                                chunk.next();
+                                value.next();
                             }
                             _ => break
                         }
                     }
-                    Err(ParseError::not_found(concat!("could not parse right side of: '", stringify!($token), "'."), chunk.position()))
+                    Err(ParseError::not_found(concat!("could not parse right side of: '", stringify!($token), "'."), value.position()))
                 }
             }
 

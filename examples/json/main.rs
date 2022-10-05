@@ -43,5 +43,5 @@ fn main() {
 
 	let mut buffer = CharStream::new(file).build();
 	let value = JSONNode::parse(&mut buffer);
-	println!("value: {:?}", value);
+	println!("value: {:#?}", value);
 }

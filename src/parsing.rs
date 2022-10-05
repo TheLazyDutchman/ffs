@@ -121,14 +121,9 @@ impl Parse for StringValue {
 		let mut inner_value = String::new();
 
 		loop {
-			let chunk = match value.get_chunk() {
-				Ok(chunk) => chunk,
-				Err(_) => return Err(ParseError::error("Could not find end of string", value.position()?))
-			};
-
-			match chunk.peek() {
+			match value.peek() {
 				Some(value) if *value == '"' => break,
-				Some(_) => inner_value.push(chunk.next().unwrap()),
+				Some(_) => inner_value.push(value.next().unwrap()),
 				_ => break
 			}
 		}
@@ -145,18 +140,17 @@ pub struct Identifier {
 
 impl Parse for Identifier {
 	fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
-		let chunk = value.get_chunk()?;
 		let mut identifier = String::new();
 
 		loop {
-		    match chunk.peek() {
-				Some(peeked) if peeked.is_alphanumeric() => identifier.push(chunk.next().unwrap()),
+		    match value.peek() {
+				Some(peeked) if peeked.is_alphanumeric() => identifier.push(value.next().unwrap()),
 				_ => break
 		    }
 		}
 
 		if identifier.len() == 0 {
-			return Err(ParseError::not_found("Did not find identifier", chunk.position()));
+			return Err(ParseError::not_found("Did not find identifier", value.position()));
 		}
 
 		Ok(Self { identifier })
@@ -170,18 +164,17 @@ pub struct Number {
 
 impl Parse for Number {
 	fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
-		let chunk = value.get_chunk()?;
 		let mut number = String::new();
 		
 		loop {
-		    match chunk.peek() {
-		        Some(peeked) if peeked.is_numeric() => number.push(chunk.next().unwrap()),
+		    match value.peek() {
+		        Some(peeked) if peeked.is_numeric() => number.push(value.next().unwrap()),
 				_ => break
 		    }
 		}
 
 		if number.len() == 0 {
-			return Err(ParseError::not_found("Did not find number.", chunk.position()));
+			return Err(ParseError::not_found("Did not find number.", value.position()));
 		}
 
 		Ok(Number { value: number })
