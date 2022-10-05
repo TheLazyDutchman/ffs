@@ -50,17 +50,22 @@ impl PartialOrd for Position {
     }
 }
 
+#[derive(Debug, Clone)]
+pub enum WhitespaceType {
+	Ignore,
+	KeepAll,
+	Indent
+}
 
 pub struct CharStreamBuilder {
 	buffer: String,
-	usewhitespace: bool,
 	file: Option<String>,
 	file_id: u32
 }
 
 impl CharStreamBuilder {
 	pub fn new(buffer: String) -> Self {
-		Self { buffer, usewhitespace: false, file: None, file_id: random() }
+		Self { buffer, file: None, file_id: random() }
 	}
 
 	pub fn build(&mut self) -> CharStream {
@@ -70,21 +75,21 @@ impl CharStreamBuilder {
 		let eof = Position::end(&buffer, file.clone(), self.file_id);
 
 
-		CharStream { buffer, chars, file, file_id: self.file_id, previous: None, column: 0, row: 0, index: 0, eof }
+		CharStream { chars, file, file_id: self.file_id, previous: None, column: 0, row: 0, index: 0, eof, whitespace: WhitespaceType::Ignore }
 	}
 }
 
 #[derive(Debug, Clone)]
 pub struct CharStream {
-	buffer: String,
 	chars: Peekable<IntoIter<char>>,
 	file: Option<String>,
 	file_id: u32,
-	previous: Option<char>,
+	pub previous: Option<char>,
 	column: usize,
 	row: usize,
 	index: usize,
-	eof: Position
+	eof: Position,
+	whitespace: WhitespaceType
 }
 
 impl CharStream {
@@ -103,23 +108,29 @@ impl CharStream {
 				self.column = 0;
 				self.row += 1;
 			}
-			Some(c) => {
+			Some(_) => {
 				self.index += 1;
 				self.column += 1;
 			}
 			None => {}
 		}
 
-		self.previous = match self.chars.next() {
-			Some('\n') => {
-				self.row += 1;
-				self.column = 0;
-				Some('\n')
-			}
-			c => c
-		};
+		self.previous = self.chars.next();
 
-		self.previous
+		match self.whitespace {
+			WhitespaceType::Ignore => {
+				match self.previous {
+					Some(c) if c.is_whitespace() => {
+						self.next()
+					}
+					c => c,
+				}
+			}
+			WhitespaceType::KeepAll => self.previous,
+			WhitespaceType::Indent => {
+				todo!()
+			}
+		}
 	}
 
 	pub fn peek(&mut self) -> Option<&char> {
@@ -144,5 +155,9 @@ impl CharStream {
 		}
 
 		Ok(())
+	}
+
+	pub fn set_whitespace(&mut self, whitespace: WhitespaceType) {
+		self.whitespace = whitespace;
 	}
 }

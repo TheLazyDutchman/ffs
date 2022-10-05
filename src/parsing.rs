@@ -3,7 +3,7 @@ pub mod charstream;
 
 use std::fmt;
 
-use self::charstream::{CharStream, Position};
+use self::charstream::{CharStream, Position, WhitespaceType};
 
 pub trait Parse {
 	fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized;
@@ -117,7 +117,8 @@ pub struct StringValue {
 
 impl Parse for StringValue {
 	fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
-        let left = <tokens::Quote as tokens::Delimiter>::Start::parse(value)?;
+		let left = <tokens::Quote as tokens::Delimiter>::Start::parse(value)?;
+		value.set_whitespace(WhitespaceType::KeepAll);
 		let mut inner_value = String::new();
 
 		loop {
@@ -127,8 +128,9 @@ impl Parse for StringValue {
 				_ => break
 			}
 		}
-
+		
 		let right = <tokens::Quote as tokens::Delimiter>::End::parse(value)?;
+		value.set_whitespace(WhitespaceType::Ignore);
 
 		Ok(Self { delim: tokens::Delimiter::new(left, right), value: inner_value})
     }

@@ -58,15 +58,13 @@ macro_rules! create_delimiters {
             impl Parse for $left {
                 fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
                     let chr = stringify!($token).chars().nth(0).unwrap();
+                    let mut token_value = value.clone();
 
                     loop {
-                        match value.peek() {
-                            Some(peeked) if *peeked == chr => {
-                                value.next();
+                        match token_value.next() {
+                            Some(token) if token == chr => {
+                                value.goto(token_value.position())?;
                                 return Ok(Self {})
-                            }
-                            Some(peeked) if peeked.is_whitespace() => {
-                                value.next();
                             }
                             _ => break 
                         };
@@ -83,20 +81,18 @@ macro_rules! create_delimiters {
             impl Parse for $right {
                 fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
                     let chr = stringify!($token).chars().nth(1).unwrap();
+                    let mut token_value = value.clone();
                     
                     loop {
-                        match value.peek() {
-                            Some(peeked) if *peeked == chr => {
-                                value.next();
+                        match token_value.next() {
+                            Some(token) if token == chr => {
+                                value.goto(token_value.position())?;
                                 return Ok(Self {})
-                            }
-                            Some(peeked) if peeked.is_whitespace() => {
-                                value.next();
                             }
                             _ => break
                         }
                     }
-                    Err(ParseError::not_found(concat!("could not parse right side of: '", stringify!($token), "'."), value.position()))
+                    Err(ParseError::error(concat!("could not parse right side of: '", stringify!($token), "'."), value.position()))
                 }
             }
 
