@@ -72,7 +72,11 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
                 Fields::Unit => return TokenStream::from(Error::new(ident.span(), "Can not derive Parse from a unit struct").to_compile_error())
             }
         }
-        Data::Enum(DataEnum { enum_token: _, brace_token: _, variants}) => {
+        Data::Enum(DataEnum { enum_token, brace_token: _, variants}) => {
+            if variants.len() == 0 {
+                return TokenStream::from(Error::new(enum_token.span(), "Can not parse an empty enum.").to_compile_error())
+            }
+
             let variants = variants.iter();
             let variants = variants.map(|v| {
                 let variant_ident = &v.ident;

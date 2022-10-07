@@ -229,3 +229,45 @@ impl<T> Parse for Vec<T> where T: Parse {
 		Ok(vec)
 	}
 }
+
+impl<T, const N: usize> Parse for [T; N] where T: Parse + fmt::Debug {
+    fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
+        let mut result = Vec::new();
+
+		for _ in 0..N {
+			result.push(T::parse(value)?);
+		}
+
+		match <[T; N]>::try_from(result) {
+			Ok(result) => Ok(result),
+			Err(error) => Err(ParseError::error(&format!("Could not create slice from parsed values. \nvalues where: {:?}", error), value.position()))
+		}
+    }
+}
+
+//TODO: see if this can be more general
+impl<A, B> Parse for (A, B) where
+	A: Parse,
+	B: Parse
+{
+    fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
+        Ok((
+			A::parse(value)?,
+			B::parse(value)?
+		))
+    }
+}
+
+impl<A, B, C> Parse for (A, B, C) where
+	A: Parse,
+	B: Parse,
+	C: Parse
+{
+    fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
+        Ok((
+			A::parse(value)?,
+			B::parse(value)?,
+			C::parse(value)?
+		))
+    }
+}
