@@ -8,11 +8,19 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
     let item = parse_macro_input!(item as DeriveInput);
     let ident = &item.ident;
     let generics = &item.generics;
+    let mut span_body = quote! {};
 
-    let function_body = match item.data {
+    let parse_body = match item.data {
         Data::Struct(DataStruct {struct_token: _, fields, semi_token: _}) => {
             match fields {
                 Fields::Named(fields) => {
+                    let first_field = fields.named[0].clone().ident.unwrap();
+                    let last_field = fields.named[fields.named.len() - 1].clone().ident.unwrap();
+
+                    span_body = quote! {
+                        parsing::charstream::Span::new(self.#first_field.span(value).start, self.#last_field.span(value).end)
+                    };
+
                     let mut fields = fields.named.iter();
 
                     let first_field = match fields.next() {
@@ -55,6 +63,7 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
                     }
                 }
                 Fields::Unnamed(fields) => {
+                    let last_field = fields.unnamed.len() - 1;
                     let fields = fields.unnamed.iter();
 
                     let types = fields.map(|f| &f.ty);
@@ -63,6 +72,10 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
                             <#t as Parse>::parse(value)?
                         }
                     });
+
+                    span_body = quote! {
+                        parsing::charstream::Span::new(self.0.span(value).start, self.#last_field.span(value).end)
+                    };
 
                     quote! {
                         let value = Self(#(#values),*);
@@ -78,6 +91,7 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
             }
 
             let variants = variants.iter();
+            let mut span_variants = Vec::new();
             let variants = variants.map(|v| {
                 let variant_ident = &v.ident;
                 match &v.fields {
@@ -144,6 +158,30 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
                             }
                         }).collect::<Vec<_>>();
 
+                        let mut first_value = None;
+                        let mut last_value = None;
+                        let span_values = values.iter().enumerate().map(|(index, value)| {
+                            let mut should_ignore = true;
+                            if index == 0 {
+                                first_value = Some(value);
+                                should_ignore = false;
+                            }
+                            if index == values.len() - 1 {
+                                last_value = Some(value);
+                                should_ignore = false;
+                            }
+                            match should_ignore {
+                                true => syn::Ident::new(&format!("_{}", value), value.span()),
+                                false => value.clone()
+                            }
+                        }).collect::<Vec<_>>();
+
+                        span_variants.push(quote! {
+                            #ident::#variant_ident(#(#span_values),*) => {
+                                parsing::charstream::Span::new(#first_value.span(value).start, #last_value.span(value).end)
+                            }
+                        });
+
                         Ok(quote! {
                             {
                                 let mut enum_value = value.clone();
@@ -152,8 +190,13 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
                                 if let (#(#tests),*) = (#(#values),*) {
                                     let cur_value = #ident::#variant_ident(#(#values),*);
                                     result = match result {
-                                        ::std::option::Option::Some(result) => if result.span(value) > cur_value.span(value) {Some(result)} else {Some(cur_value)},
-                                        ::std::option::Option::None => ::std::option::Option::None
+                                        ::std::option::Option::Some(result) => if result.span(value) > cur_value.span(value) {
+                                            ::std::option::Option::Some(result)
+                                        } else {
+                                            position = enum_value.position();
+                                            ::std::option::Option::Some(cur_value)
+                                        },
+                                        ::std::option::Option::None => Some(cur_value)
                                     }
                                 }
                             }
@@ -168,6 +211,12 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
             let variants = match variants {
                 Ok(variants) => variants,
                 Err(err) => return err
+            };
+
+            span_body = quote! {
+                match self {
+                    #(#span_variants)*
+                }
             };
 
             let error = format!("Did not find variant for {}", ident);
@@ -196,11 +245,11 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
     let gen = quote! {
         impl #generics Parse for #ident #generics {
             fn parse(value: &mut parsing::charstream::CharStream) -> ::std::result::Result<Self, parsing::ParseError> {
-                #function_body
+                #parse_body
             }
 
             fn span(&self, value: &parsing::charstream::CharStream) -> parsing::charstream::Span {
-                todo!()
+                #span_body
             }
         }
     };
