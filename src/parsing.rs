@@ -160,7 +160,7 @@ impl Parse for StringValue {
 	}
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Identifier {
 	identifier: String,
 	span: Span
@@ -204,7 +204,12 @@ impl Parse for Identifier {
 	}
 }
 
-#[derive(Debug)]
+impl fmt::Debug for Identifier {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Identifier({}, from {})", self.identifier, self.span)
+    }
+}
+
 pub struct Number {
 	value: String,
 	span: Span
@@ -246,6 +251,12 @@ impl Parse for Number {
 	fn span(&self, _: &CharStream) -> Span {
 		self.span.clone()
 	}
+}
+
+impl fmt::Debug for Number {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Number({}, from {})", self.value, self.span)
+    }
 }
 
 impl<T> Parse for Vec<T> where T: Parse {

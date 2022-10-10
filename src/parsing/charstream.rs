@@ -1,4 +1,4 @@
-use std::vec::IntoIter;
+use std::{vec::IntoIter, fmt};
 use rand::random;
 
 use super::ParseError;
@@ -50,6 +50,15 @@ impl PartialOrd for Position {
     }
 }
 
+impl fmt::Display for Position {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		match &self.file {
+			Some(file) => write!(f,"{}:{}:{}", file, self.row, self.column),
+			None => write!(f, "{}:{}", self.row, self.column)
+		}
+	}
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Span {
 	pub start: Position,
@@ -74,6 +83,12 @@ impl PartialOrd for Span {
         }
         self.end.partial_cmp(&other.end)
     }
+}
+
+impl fmt::Display for Span {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(f, "{} - {}:{}", self.start, self.start.row, self.start.column)
+	}
 }
 
 #[derive(Debug, Clone)]
