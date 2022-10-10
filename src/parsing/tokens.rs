@@ -9,13 +9,16 @@ pub trait Delimiter {
 	type End: Token;
 
 	fn new(start: Self::Start, end: Self::End) -> Self where Self: Sized;
+    fn span(&self, value: &CharStream) -> super::Span;
 }
 
 macro_rules! create_tokens {
     ($($token:tt $id:ident),+) => {
         $(
             #[derive(Debug)]
-            pub struct $id;
+            pub struct $id {
+                span: super::Span
+            }
             
             impl Token for $id {}
             
@@ -23,6 +26,7 @@ macro_rules! create_tokens {
                 fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
                     let token = stringify!($token);
                     let len = token.len();
+                    let start = value.position();
 
                     let mut token_value = value.clone();
 
@@ -37,10 +41,15 @@ macro_rules! create_tokens {
 
                     if (token == mtch) {
                         value.goto(token_value.position())?;
-                        return Ok(Self {});
+                        let end = value.position();
+                        return Ok(Self { span: super::Span::new(start, end)});
                     }
 
                     Err(ParseError::not_found(concat!("Could not find token '", stringify!($token), "'."), token_value.position()))
+                }
+
+                fn span(&self, _: &CharStream) -> super::Span {
+                    self.span.clone()
                 }
             }
         )+
@@ -51,7 +60,9 @@ macro_rules! create_delimiters {
     ($($token:tt $left: ident $right: ident $delim:ident),+) => {
         $(
             #[derive(Debug)]
-            pub struct $left;
+            pub struct $left {
+                span: super::Span
+            }
 
             impl Token for $left {}
 
@@ -59,20 +70,28 @@ macro_rules! create_delimiters {
                 fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
                     let chr = stringify!($token).chars().nth(0).unwrap();
                     let mut token_value = value.clone();
+                    let start = value.position();
 
                     if let Some(token) = token_value.next() {
                         if token == chr {
                             value.goto(token_value.position())?;
-                            return Ok(Self {})
+                            let end = value.position();
+                            return Ok(Self { span: super::Span::new(start, end)})
                         }
                     }
 
                     Err(ParseError::not_found(concat!("could not find left side of: '", stringify!($token), "'."), value.position()))
                 }
+
+                fn span(&self, _: &CharStream) -> super::Span {
+                    self.span.clone()
+                }
             }
 
             #[derive(Debug)]
-            pub struct $right;
+            pub struct $right {
+                span: super::Span
+            }
 
             impl Token for $right {}
 
@@ -80,16 +99,22 @@ macro_rules! create_delimiters {
                 fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
                     let chr = stringify!($token).chars().nth(1).unwrap();
                     let mut token_value = value.clone();
+                    let start = value.position();
 
                     if let Some(token) = token_value.next() {
                         println!("end {}", chr);
                         if token == chr {
                             value.goto(token_value.position())?;
-                            return Ok(Self {})
+                            let end = value.position();
+                            return Ok(Self { span: super::Span::new(start, end)})
                         }
                     }
 
                     Err(ParseError::not_found(concat!("could not find right side of: '", stringify!($token), "'."), value.position()))
+                }
+
+                fn span(&self, _: &CharStream) -> super::Span {
+                    self.span.clone()
                 }
             }
 
@@ -105,6 +130,10 @@ macro_rules! create_delimiters {
 
                 fn new(start: Self::Start, end: Self::End) -> Self {
                     Self { start, end }
+                }
+
+                fn span(&self, value: &CharStream) -> super::Span {
+                    super::Span::new(self.start.span(value).start, self.end.span(value).end)
                 }
             }
         )+

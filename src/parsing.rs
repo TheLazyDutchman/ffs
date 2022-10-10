@@ -3,10 +3,11 @@ pub mod charstream;
 
 use std::fmt;
 
-use self::charstream::{CharStream, Position, WhitespaceType};
+use self::{charstream::{CharStream, Position, WhitespaceType, Span}, tokens::Delimiter};
 
 pub trait Parse {
 	fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized;
+	fn span(&self, value: &CharStream) -> Span;
 }
 
 #[derive(Clone)]
@@ -69,11 +70,16 @@ impl<D, I> Parse for Group<D, I> where
 
 		Ok(Self { delimiter, item })
     }
+
+	fn span(&self, value: &CharStream) -> Span {
+		self.delimiter.span(value)
+	}
 }
 
 #[derive(Debug)]
 pub struct List<I, S> {
-	items: Vec<(I, Option<S>)>
+	items: Vec<(I, Option<S>)>,
+	span: Span
 }
 
 impl<I, S> Parse for List<I, S> where
@@ -82,6 +88,7 @@ impl<I, S> Parse for List<I, S> where
 {
 	fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
         let mut items = Vec::new();
+		let start = value.position();
 
 		loop {
 			let item = match I::parse(value) {
@@ -105,8 +112,14 @@ impl<I, S> Parse for List<I, S> where
 			items.push((item, separator));
 		}
 
-		Ok(Self { items })
+		let end = value.position();
+
+		Ok(Self { items, span: Span::new(start, end) })
     }
+
+	fn span(&self, _: &CharStream) -> Span {
+		self.span.clone()
+	}
 }
 
 #[derive(Debug)]
@@ -141,16 +154,22 @@ impl Parse for StringValue {
 
 		Ok(Self { delim: tokens::Delimiter::new(left, right), value: inner_value})
     }
+
+	fn span(&self, value: &CharStream) -> Span {
+		self.delim.span(value)
+	}
 }
 
 #[derive(Debug, Clone)]
 pub struct Identifier {
-	identifier: String
+	identifier: String,
+	span: Span
 }
 
 impl Parse for Identifier {
 	fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
 		let mut identifier = String::new();
+		let start = value.position();
 
 		let mut ident_value = value.clone();
 		match ident_value.next() {
@@ -175,18 +194,26 @@ impl Parse for Identifier {
 			_ => return Err(ParseError::not_found("Did not find identifier", ident_value.position()))
 		}
 
-		Ok(Self { identifier })
+		let end = value.position();
+
+		Ok(Self { identifier , span: Span::new(start, end)})
     }
+
+	fn span(&self, _: &CharStream) -> Span {
+		self.span.clone()
+	}
 }
 
 #[derive(Debug)]
 pub struct Number {
-	value: String
+	value: String,
+	span: Span
 }
 
 impl Parse for Number {
 	fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
 		let mut number = String::new();
+		let start = value.position();
 		
 		let mut num_value = value.clone();
 		match num_value.next() {
@@ -211,9 +238,14 @@ impl Parse for Number {
 			_ => return Err(ParseError::not_found("Did not find number", num_value.position()))
 		}
 
+		let end = value.position();
 
-		Ok(Number { value: number })
+		Ok(Number { value: number, span: Span::new(start, end)})
     }
+
+	fn span(&self, _: &CharStream) -> Span {
+		self.span.clone()
+	}
 }
 
 impl<T> Parse for Vec<T> where T: Parse {
@@ -227,6 +259,14 @@ impl<T> Parse for Vec<T> where T: Parse {
 		}
 
 		Ok(vec)
+	}
+
+	fn span(&self, value: &CharStream) -> Span {
+		if self.len() == 0 {
+			return Span::empty(value);
+		}
+
+		Span::new(self.first().unwrap().span(value).start, self.last().unwrap().span(value).start)
 	}
 }
 
@@ -243,6 +283,10 @@ impl<T, const N: usize> Parse for [T; N] where T: Parse + fmt::Debug {
 			Err(error) => Err(ParseError::error(&format!("Could not create slice from parsed values. \nvalues where: {:?}", error), value.position()))
 		}
     }
+
+	fn span(&self, value: &CharStream) -> Span {
+		Span::new(self[0].span(value).start, self[N - 1].span(value).end)
+	}
 }
 
 //TODO: see if this can be more general
@@ -256,6 +300,10 @@ impl<A, B> Parse for (A, B) where
 			B::parse(value)?
 		))
     }
+	
+	fn span(&self, value: &CharStream) -> Span {
+		Span::new(self.0.span(value).start, self.1.span(value).end)
+	}
 }
 
 impl<A, B, C> Parse for (A, B, C) where
@@ -270,4 +318,8 @@ impl<A, B, C> Parse for (A, B, C) where
 			C::parse(value)?
 		))
     }
+
+	fn span(&self, value: &CharStream) -> Span {
+		Span::new(self.0.span(value).start, self.2.span(value).end)
+	}
 }

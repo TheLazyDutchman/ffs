@@ -150,8 +150,11 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
 
                                 #(#objects)*
                                 if let (#(#tests),*) = (#(#values),*) {
-                                    value.goto(enum_value.position())?;
-                                    return ::std::result::Result::Ok(#ident::#variant_ident(#(#values),*));
+                                    let cur_value = #ident::#variant_ident(#(#values),*);
+                                    result = match result {
+                                        ::std::option::Option::Some(result) => if result.span(value) > cur_value.span(value) {Some(result)} else {Some(cur_value)},
+                                        ::std::option::Option::None => ::std::option::Option::None
+                                    }
                                 }
                             }
                         })
@@ -170,8 +173,20 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
             let error = format!("Did not find variant for {}", ident);
 
             quote! {
+                let mut error: ::std::option::Option<parsing::ParseError> = ::std::option::Option::None;
+                let mut result: ::std::option::Option<Self> = ::std::option::Option::None;
+                let mut position = value.position();
                 #(#variants)*
-                ::std::result::Result::Err(parsing::ParseError::not_found(#error, value.position()))
+                match result {
+                    ::std::option::Option::Some(result) => {
+                        value.goto(position)?;
+                        ::std::result::Result::Ok(result)
+                    }
+                    ::std::option::Option::None => match error {
+                        ::std::option::Option::Some(error) => ::std::result::Result::Err(error),
+                        ::std::option::Option::None => ::std::result::Result::Err(parsing::ParseError::not_found(#error, value.position()))
+                    }
+                }
             }
         }
         Data::Union(DataUnion {union_token, fields: _}) 
@@ -182,6 +197,10 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
         impl #generics Parse for #ident #generics {
             fn parse(value: &mut parsing::charstream::CharStream) -> ::std::result::Result<Self, parsing::ParseError> {
                 #function_body
+            }
+
+            fn span(&self, value: &parsing::charstream::CharStream) -> parsing::charstream::Span {
+                todo!()
             }
         }
     };
