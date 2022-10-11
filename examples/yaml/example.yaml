@@ -2,6 +2,7 @@
 value:
   name: "example"
   isExample: true
+  number: 1
   numbers:
     - 0
     - 1

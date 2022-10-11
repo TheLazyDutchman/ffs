@@ -8,7 +8,7 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
     let item = parse_macro_input!(item as DeriveInput);
     let ident = &item.ident;
     let generics = &item.generics;
-    let mut span_body = quote! {};
+    let span_body;
 
     let parse_body = match item.data {
         Data::Struct(DataStruct {struct_token: _, fields, semi_token: _}) => {
@@ -63,7 +63,7 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
                     }
                 }
                 Fields::Unnamed(fields) => {
-                    let last_field = fields.unnamed.len() - 1;
+                    let last_field = syn::Index::from(fields.unnamed.len() - 1);
                     let fields = fields.unnamed.iter();
 
                     let types = fields.map(|f| &f.ty);
@@ -152,7 +152,11 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
 
                             quote! {
                                 let #value = match <#ty as Parse>::parse(&mut enum_value) {
-                                    Err(parsing::ParseError::Error(error, position)) => return Err(parsing::ParseError::error(&error, position)),
+                                    Err(parsing::ParseError::Error(error_value, position)) => {
+                                        let value = parsing::ParseError::error(&error_value, position);
+                                        error = Some(value.clone());
+                                        Err(value)
+                                    }
                                     value => value
                                 };
                             }

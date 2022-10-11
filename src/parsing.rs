@@ -259,7 +259,7 @@ impl fmt::Debug for Number {
     }
 }
 
-impl<T> Parse for Vec<T> where T: Parse {
+impl<T> Parse for Vec<T> where T: Parse + fmt::Debug {
 	fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
 		let mut vec = Vec::new();
 
@@ -268,6 +268,8 @@ impl<T> Parse for Vec<T> where T: Parse {
 			vec.push(item?);
 			item = T::parse(value);
 		}
+
+		println!("end of list: {:?}, cur vec: {:?}", item, vec);
 
 		Ok(vec)
 	}
