@@ -78,8 +78,8 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
                     };
 
                     quote! {
-                        let value = Self(#(#values),*);
-                        ::std::result::Result::Ok(value)
+                        let result = Self(#(#values),*);
+                        ::std::result::Result::Ok(result)
                     }
                 }
                 Fields::Unit => return TokenStream::from(Error::new(ident.span(), "Can not derive Parse from a unit struct").to_compile_error())
@@ -200,7 +200,10 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
                                             position = enum_value.position();
                                             ::std::option::Option::Some(cur_value)
                                         },
-                                        ::std::option::Option::None => Some(cur_value)
+                                        ::std::option::Option::None => {
+                                            position = enum_value.position();
+                                            ::std::option::Option::Some(cur_value)
+                                        }
                                     }
                                 }
                             }

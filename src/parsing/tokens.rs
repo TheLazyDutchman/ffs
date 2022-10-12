@@ -56,7 +56,7 @@ macro_rules! create_tokens {
 
             impl fmt::Debug for $id {
                 fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result{
-                    write!(f, "Token({}, at: {})", stringify!($token), self.span.start)
+                    write!(f, "Token({}, at: {})", stringify!($token), self.span.end)
                 }
             }
 

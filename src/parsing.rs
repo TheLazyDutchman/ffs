@@ -269,8 +269,6 @@ impl<T> Parse for Vec<T> where T: Parse + fmt::Debug {
 			item = T::parse(value);
 		}
 
-		println!("end of list: {:?}, cur vec: {:?}", item, vec);
-
 		Ok(vec)
 	}
 
