@@ -7,7 +7,7 @@ use self::{charstream::{CharStream, Position, WhitespaceType, Span}, tokens::Del
 
 pub trait Parse {
 	fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized;
-	fn span(&self, value: &CharStream) -> Span;
+	fn span(&self) -> Span;
 }
 
 #[derive(Clone)]
@@ -45,7 +45,6 @@ impl fmt::Debug for ParseError {
     }
 }
 
-#[derive(Debug)]
 pub struct Group<D, I> {
 	delimiter: D,
 	item: I
@@ -71,12 +70,20 @@ impl<D, I> Parse for Group<D, I> where
 		Ok(Self { delimiter, item })
     }
 
-	fn span(&self, value: &CharStream) -> Span {
-		self.delimiter.span(value)
+	fn span(&self) -> Span {
+		self.delimiter.span()
 	}
 }
 
-#[derive(Debug)]
+impl<D, I> fmt::Debug for Group<D, I> where
+	D: tokens::Delimiter,
+	I: Parse + fmt::Debug
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "Group({:#?}, delim: {}, from {})", self.item, D::name(), self.span())
+    }
+}
+
 pub struct List<I, S> {
 	items: Vec<(I, Option<S>)>,
 	span: Span
@@ -117,12 +124,20 @@ impl<I, S> Parse for List<I, S> where
 		Ok(Self { items, span: Span::new(start, end) })
     }
 
-	fn span(&self, _: &CharStream) -> Span {
+	fn span(&self) -> Span {
 		self.span.clone()
 	}
 }
 
-#[derive(Debug)]
+impl<I, S> fmt::Debug for List<I, S> where 
+	I: Parse + fmt::Debug,
+	S: tokens::Token + fmt::Debug
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "List({:#?}, from {})", self.items, self.span())
+    }
+}
+
 pub struct StringValue {
 	delim: tokens::Quote,
 	value: String
@@ -155,9 +170,15 @@ impl Parse for StringValue {
 		Ok(Self { delim: tokens::Delimiter::new(left, right), value: inner_value})
     }
 
-	fn span(&self, value: &CharStream) -> Span {
-		self.delim.span(value)
+	fn span(&self) -> Span {
+		self.delim.span()
 	}
+}
+
+impl fmt::Debug for StringValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "StringValue({}, from {})", self.value, self.span())
+    }
 }
 
 #[derive(Clone)]
@@ -199,7 +220,7 @@ impl Parse for Identifier {
 		Ok(Self { identifier , span: Span::new(start, end)})
     }
 
-	fn span(&self, _: &CharStream) -> Span {
+	fn span(&self) -> Span {
 		self.span.clone()
 	}
 }
@@ -248,7 +269,7 @@ impl Parse for Number {
 		Ok(Number { value: number, span: Span::new(start, end)})
     }
 
-	fn span(&self, _: &CharStream) -> Span {
+	fn span(&self) -> Span {
 		self.span.clone()
 	}
 }
@@ -259,7 +280,7 @@ impl fmt::Debug for Number {
     }
 }
 
-impl<T> Parse for Vec<T> where T: Parse + fmt::Debug {
+impl<T> Parse for Vec<T> where T: Parse {
 	fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
 		let mut vec = Vec::new();
 
@@ -269,15 +290,15 @@ impl<T> Parse for Vec<T> where T: Parse + fmt::Debug {
 			item = T::parse(value);
 		}
 
-		Ok(vec)
+		if vec.len() == 0 {
+			Err(ParseError::NotFound("Could not find vector.".to_string(), value.position()))
+		} else {
+			Ok(vec)
+		}
 	}
 
-	fn span(&self, value: &CharStream) -> Span {
-		if self.len() == 0 {
-			return Span::empty(value);
-		}
-
-		Span::new(self.first().unwrap().span(value).start, self.last().unwrap().span(value).start)
+	fn span(&self) -> Span {
+		Span::new(self.first().unwrap().span().start, self.last().unwrap().span().start)
 	}
 }
 
@@ -295,8 +316,8 @@ impl<T, const N: usize> Parse for [T; N] where T: Parse + fmt::Debug {
 		}
     }
 
-	fn span(&self, value: &CharStream) -> Span {
-		Span::new(self[0].span(value).start, self[N - 1].span(value).end)
+	fn span(&self) -> Span {
+		Span::new(self[0].span().start, self[N - 1].span().end)
 	}
 }
 
@@ -312,8 +333,8 @@ impl<A, B> Parse for (A, B) where
 		))
     }
 	
-	fn span(&self, value: &CharStream) -> Span {
-		Span::new(self.0.span(value).start, self.1.span(value).end)
+	fn span(&self) -> Span {
+		Span::new(self.0.span().start, self.1.span().end)
 	}
 }
 
@@ -330,7 +351,7 @@ impl<A, B, C> Parse for (A, B, C) where
 		))
     }
 
-	fn span(&self, value: &CharStream) -> Span {
-		Span::new(self.0.span(value).start, self.2.span(value).end)
+	fn span(&self) -> Span {
+		Span::new(self.0.span().start, self.2.span().end)
 	}
 }

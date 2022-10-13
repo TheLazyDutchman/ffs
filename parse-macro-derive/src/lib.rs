@@ -18,7 +18,7 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
                     let last_field = fields.named[fields.named.len() - 1].clone().ident.unwrap();
 
                     span_body = quote! {
-                        parsing::charstream::Span::new(self.#first_field.span(value).start, self.#last_field.span(value).end)
+                        parsing::charstream::Span::new(self.#first_field.span().start, self.#last_field.span().end)
                     };
 
                     let mut fields = fields.named.iter();
@@ -74,7 +74,7 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
                     });
 
                     span_body = quote! {
-                        parsing::charstream::Span::new(self.0.span(value).start, self.#last_field.span(value).end)
+                        parsing::charstream::Span::new(self.0.span().start, self.#last_field.span().end)
                     };
 
                     quote! {
@@ -182,7 +182,7 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
 
                         span_variants.push(quote! {
                             #ident::#variant_ident(#(#span_values),*) => {
-                                parsing::charstream::Span::new(#first_value.span(value).start, #last_value.span(value).end)
+                                parsing::charstream::Span::new(#first_value.span().start, #last_value.span().end)
                             }
                         });
 
@@ -194,7 +194,7 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
                                 if let (#(#tests),*) = (#(#values),*) {
                                     let cur_value = #ident::#variant_ident(#(#values),*);
                                     result = match result {
-                                        ::std::option::Option::Some(result) => if result.span(value) > cur_value.span(value) {
+                                        ::std::option::Option::Some(result) => if result.span() > cur_value.span() {
                                             ::std::option::Option::Some(result)
                                         } else {
                                             position = enum_value.position();
@@ -255,7 +255,7 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
                 #parse_body
             }
 
-            fn span(&self, value: &parsing::charstream::CharStream) -> parsing::charstream::Span {
+            fn span(&self) -> parsing::charstream::Span {
                 #span_body
             }
         }

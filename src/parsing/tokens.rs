@@ -11,7 +11,8 @@ pub trait Delimiter {
 	type End: Token;
 
 	fn new(start: Self::Start, end: Self::End) -> Self where Self: Sized;
-    fn span(&self, value: &CharStream) -> super::Span;
+    fn span(&self) -> super::Span;
+    fn name() -> String;
 }
 
 macro_rules! create_tokens {
@@ -49,7 +50,7 @@ macro_rules! create_tokens {
                     Err(ParseError::not_found(concat!("Could not find token '", stringify!($token), "'."), token_value.position()))
                 }
 
-                fn span(&self, _: &CharStream) -> super::Span {
+                fn span(&self) -> super::Span {
                     self.span.clone()
                 }
             }
@@ -95,7 +96,7 @@ macro_rules! create_delimiters {
                     Err(ParseError::not_found(concat!("could not find left side of: '", stringify!($token), "'."), value.position()))
                 }
 
-                fn span(&self, _: &CharStream) -> super::Span {
+                fn span(&self) -> super::Span {
                     self.span.clone()
                 }
             }
@@ -135,7 +136,7 @@ macro_rules! create_delimiters {
                     Err(ParseError::not_found(concat!("could not find right side of: '", stringify!($token), "'."), value.position()))
                 }
 
-                fn span(&self, _: &CharStream) -> super::Span {
+                fn span(&self) -> super::Span {
                     self.span.clone()
                 }
             }
@@ -166,8 +167,12 @@ macro_rules! create_delimiters {
                     Self { start, end }
                 }
 
-                fn span(&self, value: &CharStream) -> super::Span {
-                    super::Span::new(self.start.span(value).start, self.end.span(value).end)
+                fn span(&self) -> super::Span {
+                    super::Span::new(self.start.span().start, self.end.span().end)
+                }
+
+                fn name() -> String {
+                    String::from(stringify!($delim))
                 }
             }
         )+
