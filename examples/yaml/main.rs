@@ -27,7 +27,9 @@ pub enum Value {
 
 #[derive(Parsable, Debug)]
 pub struct YAML {
+	#[whitespace(KeepAll)]
 	start: [tokens::Hyphen; 3],
+	#[whitespace(KeepAll)]
 	value: Value
 }
 

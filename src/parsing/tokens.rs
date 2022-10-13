@@ -35,7 +35,6 @@ macro_rules! create_tokens {
                     let mut mtch = String::new();
                     while mtch.len() < len {
                         mtch.push(match token_value.next() {
-                            Some(value) if value.is_whitespace() => continue,
                             Some(value) => value,
                             None => break
                         });
