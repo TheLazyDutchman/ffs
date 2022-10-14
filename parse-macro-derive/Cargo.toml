@@ -1,7 +1,10 @@
 [package]
 name = "parse-macro-derive"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
+description = "derive macro for the parseal crate"
+repository = "https://github.com/TheLazyDutchman/ffs/"
+license-file = "../LICENSE"
 
 [lib]
 proc-macro=true
