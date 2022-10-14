@@ -1,6 +1,8 @@
+use std::fmt;
+
 use super::{Parse, ParseError, charstream::CharStream};
 
-pub trait Token: Parse {
+pub trait Token: Parse + fmt::Display {
 
 }
 
@@ -9,13 +11,16 @@ pub trait Delimiter {
 	type End: Token;
 
 	fn new(start: Self::Start, end: Self::End) -> Self where Self: Sized;
+    fn span(&self) -> super::Span;
+    fn name() -> String;
 }
 
 macro_rules! create_tokens {
     ($($token:tt $id:ident),+) => {
         $(
-            #[derive(Debug)]
-            pub struct $id;
+            pub struct $id {
+                span: super::Span
+            }
             
             impl Token for $id {}
             
@@ -23,14 +28,13 @@ macro_rules! create_tokens {
                 fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
                     let token = stringify!($token);
                     let len = token.len();
+                    let start = value.position();
 
                     let mut token_value = value.clone();
-                    let token_value = token_value.get_chunk()?;
 
                     let mut mtch = String::new();
                     while mtch.len() < len {
                         mtch.push(match token_value.next() {
-                            Some(value) if value.is_whitespace() => continue,
                             Some(value) => value,
                             None => break
                         });
@@ -38,10 +42,27 @@ macro_rules! create_tokens {
 
                     if (token == mtch) {
                         value.goto(token_value.position())?;
-                        return Ok(Self {});
+                        let end = value.position();
+                        return Ok(Self { span: super::Span::new(start, end)});
                     }
 
                     Err(ParseError::not_found(concat!("Could not find token '", stringify!($token), "'."), token_value.position()))
+                }
+
+                fn span(&self) -> super::Span {
+                    self.span.clone()
+                }
+            }
+
+            impl fmt::Debug for $id {
+                fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result{
+                    write!(f, "Token({}, at: {})", stringify!($token), self.span.end)
+                }
+            }
+
+            impl fmt::Display for $id {
+                fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+                    write!(f, "Token({})", stringify!($token))
                 }
             }
         )+
@@ -51,55 +72,83 @@ macro_rules! create_tokens {
 macro_rules! create_delimiters {
     ($($token:tt $left: ident $right: ident $delim:ident),+) => {
         $(
-            #[derive(Debug)]
-            pub struct $left;
+            pub struct $left {
+                span: super::Span
+            }
 
             impl Token for $left {}
 
             impl Parse for $left {
                 fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
                     let chr = stringify!($token).chars().nth(0).unwrap();
-                    let chunk = value.get_chunk()?;
+                    let mut token_value = value.clone();
+                    let start = value.position();
 
-                    loop {
-                        match chunk.peek() {
-                            Some(peeked) if *peeked == chr => {
-                                chunk.next();
-                                return Ok(Self {})
-                            }
-                            Some(peeked) if peeked.is_whitespace() => {
-                                chunk.next();
-                            }
-                            _ => break 
-                        };
+                    if let Some(token) = token_value.next() {
+                        if token == chr {
+                            value.goto(token_value.position())?;
+                            let end = value.position();
+                            return Ok(Self { span: super::Span::new(start, end)})
+                        }
                     }
-                    Err(ParseError::not_found(concat!("could not find left side of: '", stringify!($token), "'."), chunk.position()))
+
+                    Err(ParseError::not_found(concat!("could not find left side of: '", stringify!($token), "'."), value.position()))
+                }
+
+                fn span(&self) -> super::Span {
+                    self.span.clone()
                 }
             }
 
-            #[derive(Debug)]
-            pub struct $right;
+            impl fmt::Debug for $left {
+                fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+                    write!(f, "Token({})", stringify!($token).chars().nth(0).unwrap())
+                }
+            }
+
+            impl fmt::Display for $left {
+                fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+                    write!(f, "Token({})", stringify!($token).chars().nth(0).unwrap())
+                }
+            }
+
+            pub struct $right {
+                span: super::Span
+            }
 
             impl Token for $right {}
 
             impl Parse for $right {
                 fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
                     let chr = stringify!($token).chars().nth(1).unwrap();
-                    let chunk = value.get_chunk()?;
-                    
-                    loop {
-                        match chunk.peek() {
-                            Some(peeked) if *peeked == chr => {
-                                chunk.next();
-                                return Ok(Self {})
-                            }
-                            Some(peeked) if peeked.is_whitespace() => {
-                                chunk.next();
-                            }
-                            _ => break
+                    let mut token_value = value.clone();
+                    let start = value.position();
+
+                    if let Some(token) = token_value.next() {
+                        if token == chr {
+                            value.goto(token_value.position())?;
+                            let end = value.position();
+                            return Ok(Self { span: super::Span::new(start, end)})
                         }
                     }
-                    Err(ParseError::not_found(concat!("could not parse right side of: '", stringify!($token), "'."), chunk.position()))
+
+                    Err(ParseError::not_found(concat!("could not find right side of: '", stringify!($token), "'."), value.position()))
+                }
+
+                fn span(&self) -> super::Span {
+                    self.span.clone()
+                }
+            }
+
+            impl fmt::Debug for $right {
+                fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+                    write!(f, "Token({})", stringify!($token).chars().nth(1).unwrap())
+                }
+            }
+
+            impl fmt::Display for $right {
+                fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+                    write!(f, "Token({})", stringify!($token).chars().nth(1).unwrap())
                 }
             }
 
@@ -116,6 +165,14 @@ macro_rules! create_delimiters {
                 fn new(start: Self::Start, end: Self::End) -> Self {
                     Self { start, end }
                 }
+
+                fn span(&self) -> super::Span {
+                    super::Span::new(self.start.span().start, self.end.span().end)
+                }
+
+                fn name() -> String {
+                    String::from(stringify!($delim))
+                }
             }
         )+
     };
@@ -126,6 +183,9 @@ create_tokens! {
     . Period,
     ! Bang,
     # Hash,
+    _ UnderScore,
+    - Hyphen,
+    + Plus,
     = Equal,
     == EqualEqual,
     : Colon,

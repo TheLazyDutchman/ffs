@@ -3,10 +3,11 @@ pub mod charstream;
 
 use std::fmt;
 
-use self::charstream::{CharStream, Position};
+use self::{charstream::{CharStream, Position, WhitespaceType, Span}, tokens::Delimiter};
 
 pub trait Parse {
 	fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized;
+	fn span(&self) -> Span;
 }
 
 #[derive(Clone)]
@@ -44,7 +45,6 @@ impl fmt::Debug for ParseError {
     }
 }
 
-#[derive(Debug)]
 pub struct Group<D, I> {
 	delimiter: D,
 	item: I
@@ -69,11 +69,24 @@ impl<D, I> Parse for Group<D, I> where
 
 		Ok(Self { delimiter, item })
     }
+
+	fn span(&self) -> Span {
+		self.delimiter.span()
+	}
 }
 
-#[derive(Debug)]
+impl<D, I> fmt::Debug for Group<D, I> where
+	D: tokens::Delimiter,
+	I: Parse + fmt::Debug
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "Group({:#?}, delim: {}, from {})", self.item, D::name(), self.span())
+    }
+}
+
 pub struct List<I, S> {
-	items: Vec<(I, Option<S>)>
+	items: Vec<(I, Option<S>)>,
+	span: Span
 }
 
 impl<I, S> Parse for List<I, S> where
@@ -82,6 +95,7 @@ impl<I, S> Parse for List<I, S> where
 {
 	fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
         let mut items = Vec::new();
+		let start = value.position();
 
 		loop {
 			let item = match I::parse(value) {
@@ -105,11 +119,25 @@ impl<I, S> Parse for List<I, S> where
 			items.push((item, separator));
 		}
 
-		Ok(Self { items })
+		let end = value.position();
+
+		Ok(Self { items, span: Span::new(start, end) })
+    }
+
+	fn span(&self) -> Span {
+		self.span.clone()
+	}
+}
+
+impl<I, S> fmt::Debug for List<I, S> where 
+	I: Parse + fmt::Debug,
+	S: tokens::Token + fmt::Debug
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "List({:#?}, from {})", self.items, self.span())
     }
 }
 
-#[derive(Debug)]
 pub struct StringValue {
 	delim: tokens::Quote,
 	value: String
@@ -117,74 +145,181 @@ pub struct StringValue {
 
 impl Parse for StringValue {
 	fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
-        let left = <tokens::Quote as tokens::Delimiter>::Start::parse(value)?;
+		let left = <tokens::Quote as tokens::Delimiter>::Start::parse(value)?;
 		let mut inner_value = String::new();
 
-		loop {
-			let chunk = match value.get_chunk() {
-				Ok(chunk) => chunk,
-				Err(_) => return Err(ParseError::error("Could not find end of string", value.position()?))
-			};
+		let mut string_value = value.clone();
 
-			match chunk.peek() {
-				Some(value) if *value == '"' => break,
-				Some(_) => inner_value.push(chunk.next().unwrap()),
+		let mut position = string_value.position();
+
+		string_value.set_whitespace(WhitespaceType::KeepAll);
+		loop {
+			match string_value.next() {
+				Some(value) if value != '"' => {
+					inner_value.push(value);
+					position = string_value.position();
+				}
 				_ => break
 			}
 		}
 
+		value.goto(position)?;
+		
 		let right = <tokens::Quote as tokens::Delimiter>::End::parse(value)?;
 
 		Ok(Self { delim: tokens::Delimiter::new(left, right), value: inner_value})
     }
+
+	fn span(&self) -> Span {
+		self.delim.span()
+	}
 }
 
+impl fmt::Debug for StringValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "StringValue({}, from {})", self.value, self.span())
+    }
+}
+
+#[derive(Clone)]
 pub struct Identifier {
-	identifier: String
+	identifier: String,
+	span: Span
 }
 
 impl Parse for Identifier {
 	fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
-		let chunk = value.get_chunk()?;
 		let mut identifier = String::new();
+		let start = value.position();
 
-		loop {
-		    match chunk.peek() {
-				Some(peeked) if peeked.is_alphanumeric() => identifier.push(chunk.next().unwrap()),
-				_ => break
-		    }
+		let mut ident_value = value.clone();
+		match ident_value.next() {
+			Some(chr) if chr.is_alphabetic() => {
+				let mut position = ident_value.position();
+				identifier.push(chr);
+
+				ident_value.set_whitespace(WhitespaceType::KeepAll);
+
+				loop {
+					match ident_value.next() {
+						Some(value) if value.is_alphanumeric() => {
+							identifier.push(value);
+							position = ident_value.position();
+						}
+						_ => break
+					}
+				}
+
+				value.goto(position)?;
+			}
+			_ => return Err(ParseError::not_found("Did not find identifier", ident_value.position()))
 		}
 
-		if identifier.len() == 0 {
-			return Err(ParseError::not_found("Did not find identifier", chunk.position()));
-		}
+		let end = value.position();
 
-		Ok(Self { identifier })
+		Ok(Self { identifier , span: Span::new(start, end)})
+    }
+
+	fn span(&self) -> Span {
+		self.span.clone()
+	}
+}
+
+impl fmt::Debug for Identifier {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Identifier({}, from {})", self.identifier, self.span)
     }
 }
 
-#[derive(Debug)]
 pub struct Number {
-	value: String
+	value: String,
+	span: Span
 }
 
 impl Parse for Number {
 	fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
-		let chunk = value.get_chunk()?;
 		let mut number = String::new();
+		let start = value.position();
 		
-		loop {
-		    match chunk.peek() {
-		        Some(peeked) if peeked.is_numeric() => number.push(chunk.next().unwrap()),
-				_ => break
-		    }
+		let mut num_value = value.clone();
+		match num_value.next() {
+			Some(chr) if chr.is_numeric() => {
+				let mut position = num_value.position();
+				number.push(chr);
+
+				num_value.set_whitespace(WhitespaceType::KeepAll);
+
+				loop {
+					match num_value.next() {
+						Some(value) if value.is_numeric() => {
+							number.push(value);
+							position = num_value.position();
+						}
+						_ => break
+					}
+				}
+
+				value.goto(position)?;
+			}
+			_ => return Err(ParseError::not_found("Did not find number", num_value.position()))
 		}
 
-		if number.len() == 0 {
-			return Err(ParseError::not_found("Did not find number.", chunk.position()));
+		let end = value.position();
+
+		Ok(Number { value: number, span: Span::new(start, end)})
+    }
+
+	fn span(&self) -> Span {
+		self.span.clone()
+	}
+}
+
+impl fmt::Debug for Number {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Number({}, from {})", self.value, self.span)
+    }
+}
+
+pub struct Indent<T> {
+	values: Vec<T>,
+	depth: u8
+}
+
+impl<T> Parse for Indent<T> where T: Parse {
+    fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
+        let mut values = Vec::new();
+
+		let mut indent_value = value.clone();
+		indent_value.set_whitespace(WhitespaceType::Indent);
+		let mut position = indent_value.position();
+
+		let mut item = T::parse(&mut indent_value);
+		let depth= indent_value.indent();
+		while item.is_ok() {
+			position = indent_value.position();
+			values.push(item?);
+			item = T::parse(&mut indent_value);
+
+			if indent_value.indent() != depth {
+				break;
+			}
 		}
 
-		Ok(Number { value: number })
+		if values.len() == 0 {
+			Err(ParseError::not_found("Could not find Indent block.", position))
+		} else {
+			Ok(Self { values, depth })
+		}
+    }
+
+    fn span(&self) -> Span {
+        Span::new(self.values.first().unwrap().span().start, self.values.last().unwrap().span().end)
+    }
+}
+
+impl<T> fmt::Debug for Indent<T> where T: fmt::Debug + Parse {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		write!(f, "Indent({:#?}, from {}, depth {})", self.values, self.span(), self.depth)
     }
 }
 
@@ -198,6 +333,68 @@ impl<T> Parse for Vec<T> where T: Parse {
 			item = T::parse(value);
 		}
 
-		Ok(vec)
+		if vec.len() == 0 {
+			Err(ParseError::NotFound("Could not find vector.".to_string(), value.position()))
+		} else {
+			Ok(vec)
+		}
+	}
+
+	fn span(&self) -> Span {
+		Span::new(self.first().unwrap().span().start, self.last().unwrap().span().start)
+	}
+}
+
+impl<T, const N: usize> Parse for [T; N] where T: Parse + fmt::Debug {
+    fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
+        let mut result = Vec::new();
+
+		for _ in 0..N {
+			result.push(T::parse(value)?);
+		}
+
+		match <[T; N]>::try_from(result) {
+			Ok(result) => Ok(result),
+			Err(error) => Err(ParseError::error(&format!("Could not create slice from parsed values. \nvalues where: {:?}", error), value.position()))
+		}
+    }
+
+	fn span(&self) -> Span {
+		Span::new(self[0].span().start, self[N - 1].span().end)
+	}
+}
+
+//TODO: see if this can be more general
+impl<A, B> Parse for (A, B) where
+	A: Parse,
+	B: Parse
+{
+    fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
+        Ok((
+			A::parse(value)?,
+			B::parse(value)?
+		))
+    }
+	
+	fn span(&self) -> Span {
+		Span::new(self.0.span().start, self.1.span().end)
+	}
+}
+
+impl<A, B, C> Parse for (A, B, C) where
+	A: Parse,
+	B: Parse,
+	C: Parse
+{
+    fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
+        Ok((
+			A::parse(value)?,
+			B::parse(value)?,
+			C::parse(value)?
+		))
+    }
+
+	fn span(&self) -> Span {
+		Span::new(self.0.span().start, self.2.span().end)
 	}
 }

@@ -1,1 +1,14 @@
-"Hello, world!"
+{
+	"name": "example",
+	"isExample": true,
+	"numbers": [
+		0,
+		1,
+		2,
+		123, 124
+	],
+	"inner": {
+		"name": "inner",
+		"number": 10
+	}
+}

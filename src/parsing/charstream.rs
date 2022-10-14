@@ -1,4 +1,4 @@
-use std::{iter::Peekable, vec::IntoIter};
+use std::{vec::IntoIter, fmt};
 use rand::random;
 
 use super::ParseError;
@@ -27,7 +27,7 @@ impl Position {
 			}
 		}
 
-		Self { column, row, index: value.len() - 1, file, file_id}
+		Self { column, row, index: value.len(), file, file_id }
 	}
 }
 
@@ -50,104 +50,97 @@ impl PartialOrd for Position {
     }
 }
 
-
-#[derive(Debug, Clone)]
-pub struct Chunk {
-	buffer: Peekable<IntoIter<char>>,
-	length: usize,
-	index: usize,
-	row: usize,
-	column: usize,
-	start_index: usize,
-	file: Option<String>,
-	file_id: u32
-}
-
-impl Chunk {
-	pub fn new(buffer: String, row: usize, column: usize, start_index: usize, file: Option<String>, file_id: u32) -> Chunk {
-		let length = buffer.len();
-		let buffer = buffer.clone().chars().collect::<Vec<_>>();
-		let buffer = buffer.into_iter().peekable();
-		Chunk { buffer, length, index: 0, row, column, start_index, file, file_id }
-	}
-
-	pub fn is_done(&self) -> bool {
-		self.index >= self.length
-	}
-
-	pub fn position(&self) -> Position {
-		Position { column: self.column, row: self.row, index: self.start_index + self.index, file: self.file.clone(), file_id: self.file_id }
-	}
-
-	pub fn next(&mut self) -> Option<char> {
-		self.index += 1;
-		self.column += 1;
-
-		let chr = self.buffer.next();
-		match chr {
-			Some(chr) if chr == '\n' => {
-				self.column = 0;
-				self.row += 1;
-				Some(chr)
-			}
-			chr => chr
+impl fmt::Display for Position {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		match &self.file {
+			Some(file) => write!(f,"{}:{}:{}", file, self.row, self.column),
+			None => write!(f, "{}:{}", self.row, self.column)
 		}
 	}
+}
 
-	pub fn peek(&mut self) -> Option<&char> {
-		self.buffer.peek()
+#[derive(Debug, Clone, PartialEq)]
+pub struct Span {
+	pub start: Position,
+	pub end: Position
+}
+
+impl Span {
+	pub fn new(start: Position, end: Position) -> Self {
+		Self { start, end }
 	}
+}
+
+impl PartialOrd for Span {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        match self.start.partial_cmp(&other.start) {
+            Some(core::cmp::Ordering::Equal) => {}
+            ord => return ord,
+        }
+        self.end.partial_cmp(&other.end)
+    }
+}
+
+impl fmt::Display for Span {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(f, "{} - {}:{}", self.start, self.end.row, self.end.column)
+	}
+}
+
+#[derive(Debug, Clone)]
+pub enum WhitespaceType {
+	Ignore,
+	KeepAll,
+	Indent
 }
 
 pub struct CharStreamBuilder {
 	buffer: String,
-	usewhitespace: bool,
 	file: Option<String>,
-	file_id: u32
+	file_id: u32,
+	indent_size: u8
 }
 
 impl CharStreamBuilder {
 	pub fn new(buffer: String) -> Self {
-		Self { buffer, usewhitespace: false, file: None, file_id: random() }
+		Self { buffer, file: None, file_id: random(), indent_size: 4 }
 	}
 
 	pub fn build(&mut self) -> CharStream {
 		let buffer = self.buffer.clone();
+		let chars = buffer.chars().collect::<Vec<_>>().into_iter();
 		let file = self.file.clone();
 		let eof = Position::end(&buffer, file.clone(), self.file_id);
 
-		let mut row = 0;
-		let mut column = 0;
-		let mut start_index = 0;
-
-		let chunks = buffer.split_inclusive(|c: char| c.is_whitespace()).map(|chunk| {
-			let mut chunk = chunk.to_owned();
-			for c in chunk.chars() {
-				column += 1;
-				if c == '\n' {
-					row += 1;
-					column = 0;
-				}
-			}
-			start_index += chunk.len();
-
-			if !self.usewhitespace {
-				chunk = chunk.trim().to_string();
-			}
-
-			Chunk::new(chunk, row, column, start_index, file.clone(), self.file_id)
-		}).collect();
-		CharStream { buffer, chunks, chunk_index: 0, file_id: self.file_id, eof }
+		CharStream { 
+			chars, 
+			file, 
+			file_id: self.file_id, 
+			column: 0, 
+			row: 0, 
+			index: 0, 
+			eof, 
+			whitespace: WhitespaceType::Ignore, 
+			indent: 0, 
+			indent_size: self.indent_size, 
+			in_indent: true 
+		}
 	}
 }
 
 #[derive(Debug, Clone)]
 pub struct CharStream {
-	buffer: String,
-	chunks: Vec<Chunk>,
-	chunk_index: usize,
+	chars: IntoIter<char>,
+	file: Option<String>,
 	file_id: u32,
-	eof: Position
+	column: usize,
+	row: usize,
+	index: usize,
+	eof: Position,
+	whitespace: WhitespaceType,
+	indent: u8,
+	indent_size: u8,
+	in_indent: bool
 }
 
 impl CharStream {
@@ -155,25 +148,64 @@ impl CharStream {
 		CharStreamBuilder::new(value)
 	}
 
-	pub fn get_chunk(&mut self) -> Result<&mut Chunk, ParseError> {
-		if self.chunk_index >= self.chunks.len() {
-			return Err(ParseError::EOF(self.eof.clone()));
-		}
-		if self.chunks[self.chunk_index].is_done() {
-			self.chunk_index += 1;
-			if self.chunk_index >= self.chunks.len() {
-				return Err(ParseError::EOF(self.eof.clone()));
-			}
-		}
-
-		Ok(&mut self.chunks[self.chunk_index])
+	pub fn position(&self) -> Position {
+		Position { column: self.column, row: self.row, index: self.index, file: self.file.clone(), file_id: self.file_id }
 	}
 
-	pub fn position(&mut self) -> Result<Position, ParseError> {
-		match self.get_chunk() {
-			Ok(chunk) => Ok(chunk.position()),
-			Err(ParseError::EOF(position)) => Ok(position),
-			Err(error) => Err(error)
+	pub fn next(&mut self) -> Option<char> {
+		let chr = match self.chars.next() {
+			Some('\n') => {
+				self.index += 1;
+				self.column = 0;
+				self.row += 1;
+				Some('\n')
+			}
+			Some(value) => {
+				self.index += 1;
+				self.column += 1;
+				Some(value)
+			}
+			None => None
+		};
+
+		match self.whitespace {
+			WhitespaceType::Ignore => {
+				match chr {
+					Some(c) if c.is_whitespace() => {
+						self.next()
+					}
+					c => c
+				}
+			}
+			WhitespaceType::KeepAll => chr,
+			WhitespaceType::Indent => {
+				match chr {
+					Some(c) if c.is_whitespace() => {
+						match c {
+							'\t' => {
+								if self.in_indent {
+									self.indent += self.indent_size;
+								}
+							}
+							' ' => {
+								if self.in_indent {
+									self.indent += 1;
+								}
+							}
+							'\n' => {
+								self.in_indent = true;
+								self.indent = 0;
+							}
+							_ => {}
+						}
+						self.next()
+					}
+					c => {
+						self.in_indent = false;
+						c
+					}
+				}
+			}
 		}
 	}
 
@@ -182,7 +214,7 @@ impl CharStream {
 			return Err(ParseError::error("Could not go to position in different buffer.", position));
 		}
 
-		if position < self.position()? {
+		if position < self.position() {
 			return Err(ParseError::error("Charstream does not support going back.", position));
 		}
 
@@ -190,10 +222,18 @@ impl CharStream {
 			return Err(ParseError::error("Charstream can not go to position after end of buffer.", self.eof.clone()));
 		}
 
-		while self.position()? < position {
-			self.get_chunk()?.next();
+		while self.position() < position {
+			self.next();
 		}
 
 		Ok(())
+	}
+
+	pub fn set_whitespace(&mut self, whitespace: WhitespaceType) {
+		self.whitespace = whitespace;
+	}
+
+	pub fn indent(&self) -> u8 {
+		self.indent
 	}
 }
