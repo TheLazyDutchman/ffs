@@ -1,4 +1,4 @@
-# ffs
+# parseal
 parsing and handling of different file formats
 
 This is a library to create parsers in a simple manner.
