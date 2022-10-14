@@ -1,6 +1,6 @@
 [package]
 name = "parseal"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 license-file = "LICENSE"
 readme = "README.md"
@@ -11,5 +11,20 @@ description = "An easy way to create your own parsers"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-parse-macro-derive = "0.1.0"
+parse-macro-derive = { version = "0.1.0", optional = true }
 rand = "0.8.0"
+
+[features]
+derive = ["dep:parse-macro-derive"]
+
+[[example]]
+name = "html"
+required-features = ["derive"]
+
+[[example]]
+name = "json"
+required-features = ["derive"]
+
+[[example]]
+name = "yaml"
+required-features = ["derive"]
