@@ -69,10 +69,6 @@ impl Span {
 	pub fn new(start: Position, end: Position) -> Self {
 		Self { start, end }
 	}
-
-	pub fn empty(value: &CharStream) -> Self {
-		Self { start: value.position(), end: value.position() }
-	}
 }
 
 impl PartialOrd for Span {
@@ -101,12 +97,13 @@ pub enum WhitespaceType {
 pub struct CharStreamBuilder {
 	buffer: String,
 	file: Option<String>,
-	file_id: u32
+	file_id: u32,
+	indent_size: u8
 }
 
 impl CharStreamBuilder {
 	pub fn new(buffer: String) -> Self {
-		Self { buffer, file: None, file_id: random() }
+		Self { buffer, file: None, file_id: random(), indent_size: 4 }
 	}
 
 	pub fn build(&mut self) -> CharStream {
@@ -115,8 +112,19 @@ impl CharStreamBuilder {
 		let file = self.file.clone();
 		let eof = Position::end(&buffer, file.clone(), self.file_id);
 
-
-		CharStream { chars, file, file_id: self.file_id, column: 0, row: 0, index: 0, eof, whitespace: WhitespaceType::Ignore }
+		CharStream { 
+			chars, 
+			file, 
+			file_id: self.file_id, 
+			column: 0, 
+			row: 0, 
+			index: 0, 
+			eof, 
+			whitespace: WhitespaceType::Ignore, 
+			indent: 0, 
+			indent_size: self.indent_size, 
+			in_indent: true 
+		}
 	}
 }
 
@@ -129,7 +137,10 @@ pub struct CharStream {
 	row: usize,
 	index: usize,
 	eof: Position,
-	whitespace: WhitespaceType
+	whitespace: WhitespaceType,
+	indent: u8,
+	indent_size: u8,
+	in_indent: bool
 }
 
 impl CharStream {
@@ -163,12 +174,37 @@ impl CharStream {
 					Some(c) if c.is_whitespace() => {
 						self.next()
 					}
-					c => c,
+					c => c
 				}
 			}
 			WhitespaceType::KeepAll => chr,
 			WhitespaceType::Indent => {
-				todo!()
+				match chr {
+					Some(c) if c.is_whitespace() => {
+						match c {
+							'\t' => {
+								if self.in_indent {
+									self.indent += self.indent_size;
+								}
+							}
+							' ' => {
+								if self.in_indent {
+									self.indent += 1;
+								}
+							}
+							'\n' => {
+								self.in_indent = true;
+								self.indent = 0;
+							}
+							_ => {}
+						}
+						self.next()
+					}
+					c => {
+						self.in_indent = false;
+						c
+					}
+				}
 			}
 		}
 	}
@@ -195,5 +231,9 @@ impl CharStream {
 
 	pub fn set_whitespace(&mut self, whitespace: WhitespaceType) {
 		self.whitespace = whitespace;
+	}
+
+	pub fn indent(&self) -> u8 {
+		self.indent
 	}
 }

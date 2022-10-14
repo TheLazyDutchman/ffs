@@ -1,6 +1,6 @@
 use std::fs;
 
-use ffs::parsing::{self, charstream::CharStream, Parse, StringValue, Number, Identifier, tokens};
+use ffs::parsing::{self, charstream::CharStream, Parse, StringValue, Number, Identifier, tokens, Indent};
 use parse_macro_derive::Parsable;
 
 #[derive(Parsable, Debug)]
@@ -13,8 +13,8 @@ pub enum NamedValue {
 
 #[derive(Parsable, Debug)]
 pub enum ObjectValue {
-	Object(Vec<(Identifier, tokens::Colon, NamedValue)>),
-	List(Vec<(tokens::Hyphen, Value)>)
+	Object(Indent<(Identifier, tokens::Colon, NamedValue)>),
+	List(Indent<(tokens::Hyphen, Value)>)
 }
 
 #[derive(Parsable, Debug)]
@@ -29,7 +29,6 @@ pub enum Value {
 pub struct YAML {
 	#[whitespace(KeepAll)]
 	start: [tokens::Hyphen; 3],
-	#[whitespace(KeepAll)]
 	value: Value
 }
 

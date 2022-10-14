@@ -280,6 +280,49 @@ impl fmt::Debug for Number {
     }
 }
 
+pub struct Indent<T> {
+	values: Vec<T>,
+	depth: u8
+}
+
+impl<T> Parse for Indent<T> where T: Parse {
+    fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
+        let mut values = Vec::new();
+
+		let mut indent_value = value.clone();
+		indent_value.set_whitespace(WhitespaceType::Indent);
+		let mut position = indent_value.position();
+
+		let mut item = T::parse(&mut indent_value);
+		let depth= indent_value.indent();
+		while item.is_ok() {
+			position = indent_value.position();
+			values.push(item?);
+			item = T::parse(&mut indent_value);
+
+			if indent_value.indent() != depth {
+				break;
+			}
+		}
+
+		if values.len() == 0 {
+			Err(ParseError::not_found("Could not find Indent block.", position))
+		} else {
+			Ok(Self { values, depth })
+		}
+    }
+
+    fn span(&self) -> Span {
+        Span::new(self.values.first().unwrap().span().start, self.values.last().unwrap().span().end)
+    }
+}
+
+impl<T> fmt::Debug for Indent<T> where T: fmt::Debug + Parse {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		write!(f, "Indent({:#?}, from {}, depth {})", self.values, self.span(), self.depth)
+    }
+}
+
 impl<T> Parse for Vec<T> where T: Parse {
 	fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
 		let mut vec = Vec::new();
