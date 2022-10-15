@@ -2,8 +2,7 @@
 
 use std::fs;
 
-use parse_macro_derive::Parsable;
-use parseal::parsing::{self, Group, List, tokens::{Bracket, Comma, Brace, Colon}, Number, StringValue, Parse, charstream::CharStream, Identifier};
+use parseal::{parsing::{self, Group, List, tokens::{Bracket, Comma, Brace, Colon}, Number, StringValue, Parse, charstream::CharStream, Identifier}, Parsable};
 
 #[derive(Debug, Parsable)]
 pub struct JSONList {

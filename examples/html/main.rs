@@ -2,8 +2,7 @@
 
 use std::fs;
 
-use parse_macro_derive::Parsable;
-use parseal::parsing::{tokens::{Less, Greater, Equal, ForwardSlash}, Parse, self, Identifier, StringValue, charstream::CharStream};
+use parseal::{parsing::{tokens::{Less, Greater, Equal, ForwardSlash}, Parse, self, Identifier, StringValue, charstream::CharStream}, Parsable};
 
 #[derive(Parsable, Debug)]
 pub struct HTML {

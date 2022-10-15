@@ -1,7 +1,6 @@
 use std::fs;
 
-use parseal::parsing::{self, charstream::CharStream, Parse, StringValue, Number, Identifier, tokens, Indent};
-use parse_macro_derive::Parsable;
+use parseal::{parsing::{self, charstream::CharStream, Parse, StringValue, Number, Identifier, tokens, Indent}, Parsable};
 
 #[derive(Parsable, Debug)]
 pub enum NamedValue {
