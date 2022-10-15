@@ -8,7 +8,7 @@ mod derive_enum;
 use derive_struct::derive_struct;
 use derive_enum::derive_enum;
 
-#[proc_macro_derive(Parsable, attributes(whitespace))]
+#[proc_macro_derive(Parsable, attributes(whitespace, value))]
 pub fn parsable_fn(item: TokenStream) -> TokenStream {
     let item = parse_macro_input!(item as DeriveInput);
     let ident = &item.ident;

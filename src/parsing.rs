@@ -135,6 +135,7 @@ impl<I, S> fmt::Debug for List<I, S> where
     }
 }
 
+#[derive(Clone)]
 pub struct StringValue {
 	delim: tokens::Quote,
 	value: String
@@ -228,6 +229,13 @@ impl fmt::Debug for Identifier {
     }
 }
 
+impl PartialEq<&str> for Identifier {
+    fn eq(&self, other: &&str) -> bool {
+        self.identifier == other.to_owned()
+    }
+}
+
+#[derive(Clone)]
 pub struct Number {
 	value: String,
 	span: Span
@@ -277,6 +285,7 @@ impl fmt::Debug for Number {
     }
 }
 
+#[derive(Clone)]
 pub struct Indent<T> {
 	values: Vec<T>,
 	depth: u8

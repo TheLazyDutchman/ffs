@@ -1,4 +1,4 @@
-use syn::{punctuated::Punctuated, Variant, token::{Comma, Enum}, Error, Fields, spanned::Spanned, Ident};
+use syn::{punctuated::Punctuated, Variant, token::{Comma, Enum}, Error, Fields, spanned::Spanned, Ident, Meta};
 
 use quote::{quote, __private::TokenStream};
 
@@ -118,17 +118,74 @@ fn derive_unnamed(ident: &Ident, variant_ident: &Ident, fields: &syn::FieldsUnna
 			Ok(#value)
 		});
 
-		quote! {
-			let #value = match <#ty as Parse>::parse(&mut enum_value) {
-				Err(parsing::ParseError::Error(error_value, position)) => {
-					let value = parsing::ParseError::error(&error_value, position);
-					error = Some(value.clone());
-					Err(value)
-				}
-				value => value
-			};
+		let attrs = field.attrs.iter().filter(|attr| attr.path.get_ident().unwrap() == "value").collect::<Vec<_>>();
+		if attrs.len() > 2 {
+			return Err((
+				TokenStream::from(Error::new(field.span(), "Can only have one value attribute.").to_compile_error()),
+				TokenStream::default()
+			))
 		}
-	}).collect::<Vec<_>>();
+
+		let value_attr = attrs.first();
+
+		let result = match value_attr {
+			Some(attr) => {
+				let attr = match attr.parse_meta() {
+					Ok(Meta::List(list)) => list,
+					Ok(_) => return Err((
+						TokenStream::from(Error::new(attr.span(), "Expected value attribute in the format: #[value(opt1, ...)].").to_compile_error()),
+						TokenStream::default()
+					)),
+					Err(error) => return Err((
+						TokenStream::from(error.to_compile_error()),
+						TokenStream::default()
+					))
+				};
+
+				let mut options = attr.nested.iter();
+				let first_option = options.next().unwrap();
+
+				let first_check = quote! {
+					if value == #first_option {
+						Ok(value)
+					}
+				};
+
+				let checks = options.map(|option|
+					quote! {
+						else if value == #option {
+							Ok(value)
+						}
+					}
+				).collect::<Vec<_>>();
+
+				quote! {
+					#first_check
+					#(#checks)*
+					else {
+						::std::result::Result::Err(parsing::ParseError::error("Parsed value was not one of the given options from the value attribute.", enum_value.position()))
+					}
+				}
+			}
+			None => quote! {
+				Ok(value)
+			}
+		};
+
+		Ok(quote! {
+			let #value = match <#ty as Parse>::parse(&mut enum_value) {
+				::std::result::Result::Err(parsing::ParseError::Error(error_value, position)) => {
+					let value = parsing::ParseError::error(&error_value, position);
+					error = ::std::option::Option::Some(value.clone());
+					::std::result::Result::Err(value)
+				}
+				::std::result::Result::Err(err) => {
+					::std::result::Result::Err(err)
+				}
+				::std::result::Result::Ok(value) => #result
+			};
+		})
+	}).collect::<Result<Vec<_>, (TokenStream, TokenStream)>>()?;
 
 	let mut first_value = None;
 	let mut last_value = None;

@@ -2,7 +2,7 @@ use std::fs;
 
 use parseal::{parsing::{self, charstream::CharStream, Parse, StringValue, Number, Identifier, tokens, Indent}, Parsable};
 
-#[derive(Parsable, Debug)]
+#[derive(Parsable, Debug, Clone)]
 pub enum NamedValue {
 	Object(ObjectValue),
 	String(StringValue),
@@ -10,18 +10,18 @@ pub enum NamedValue {
 	Bool(Identifier)
 }
 
-#[derive(Parsable, Debug)]
+#[derive(Parsable, Debug, Clone)]
 pub enum ObjectValue {
 	Object(Indent<(Identifier, tokens::Colon, NamedValue)>),
 	List(Indent<(tokens::Hyphen, Value)>)
 }
 
-#[derive(Parsable, Debug)]
+#[derive(Parsable, Debug, Clone)]
 pub enum Value {
 	Named(Identifier, tokens::Colon, ObjectValue),
 	String(StringValue),
 	Number(Number),
-	Bool(Identifier)
+	Bool(#[value("true", "false")] Identifier)
 }
 
 #[derive(Parsable, Debug)]

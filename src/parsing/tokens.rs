@@ -18,6 +18,7 @@ pub trait Delimiter {
 macro_rules! create_tokens {
     ($($token:tt $id:ident),+) => {
         $(
+            #[derive(Clone)]
             pub struct $id {
                 span: super::Span
             }
@@ -72,6 +73,7 @@ macro_rules! create_tokens {
 macro_rules! create_delimiters {
     ($($token:tt $left: ident $right: ident $delim:ident),+) => {
         $(
+            #[derive(Clone)]
             pub struct $left {
                 span: super::Span
             }
@@ -112,6 +114,7 @@ macro_rules! create_delimiters {
                 }
             }
 
+            #[derive(Clone)]
             pub struct $right {
                 span: super::Span
             }
@@ -152,7 +155,7 @@ macro_rules! create_delimiters {
                 }
             }
 
-            #[derive(Debug)]
+            #[derive(Debug, Clone)]
             pub struct $delim {
                 start: $left,
                 end: $right
