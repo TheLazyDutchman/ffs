@@ -1,6 +1,6 @@
 use std::fs;
 
-use ffs::parsing::{self, charstream::CharStream, Parse, StringValue, Number, Identifier, tokens, Indent};
+use parseal::parsing::{self, charstream::CharStream, Parse, StringValue, Number, Identifier, tokens, Indent};
 use parse_macro_derive::Parsable;
 
 #[derive(Parsable, Debug)]

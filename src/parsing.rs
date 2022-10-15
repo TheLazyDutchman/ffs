@@ -1,7 +1,7 @@
 pub mod tokens;
 pub mod charstream;
 
-use std::fmt::{Display, self};
+use std::fmt;
 
 use self::{charstream::{CharStream, Position, WhitespaceType, Span}, tokens::Delimiter};
 
