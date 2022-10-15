@@ -47,6 +47,7 @@ we call build here because the `new` function returns a [CharStreamBuilder](#Cha
 
 #### Functions
 |name|description|args|
+|---|---|---|
 |`new`|creates a `CharStreamBuilder`|`value`: the `String` buffer to create the CharStream from|
 |`set_whitespace`|sets the white space mode|`type`: the `WhitespaceType` to set the stream to|
 |`position`|returns the current position||
