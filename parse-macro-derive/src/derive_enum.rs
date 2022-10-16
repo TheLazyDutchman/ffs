@@ -82,14 +82,50 @@ fn derive_named(variant_ident: &Ident, fields: &syn::FieldsNamed) -> Result<Toke
 			#field_ident: #value
 		};
 
+		
+		let attrs = field.attrs.iter().filter(|attr| attr.path.get_ident().unwrap() == "value").collect::<Vec<_>>();
+		if attrs.len() > 2 {
+			return Err((
+				TokenStream::from(Error::new(field.span(), "Can only have one value attribute.").to_compile_error()),
+				TokenStream::default()
+			))
+		}
+
+		let value_attr = attrs.first();
+
 		values.push(value.clone());
 		inputs.push(input);
 		checks.push(check);
 
-		quote! {
+		let result = quote! {
 			let #value = <#ty as Parse>::parse(&mut enum_value);
+		};
+
+		match value_attr {
+			Some(attr) => {
+				let attr_value = match attr.parse_meta() {
+					Ok(Meta::List(list)) => {
+						let value = list.nested;
+						quote! {
+							#value
+						}
+					}
+					_ => return Err((
+						TokenStream::from(Error::new(attr.span(), "Expected value attribute to be of format: #[value(opt1, ...)].").to_compile_error()),
+						TokenStream::default()
+					))
+				};
+				Ok(quote! {
+					#result
+					match #value {
+						Ok(value) if value != #attr_value => Err(),
+						value => value
+					}
+				})
+			}
+			None => Ok(result)
 		}
-	}).collect::<Vec<_>>();
+	}).collect::<Result<Vec<_>,_>>()?;
 	
 	Ok(quote! {
 		{
