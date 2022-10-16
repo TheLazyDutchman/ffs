@@ -45,7 +45,27 @@ impl fmt::Debug for ParseError {
     }
 }
 
-pub struct Group<D, I> {
+/// A Group represents a delimited item.
+/// Group has two Generic types:
+/// - `D` is the delimiter tokens around the item, it has to a type that implements [`tokens::Delimiter`].
+/// - `I` is the type of item inside the delimiters, it has to implement [`Parse`].
+/// ```
+/// # use parseal::parsing::{charstream::CharStream, tokens, Group, StringValue, Number, List, Parse};
+/// # fn main() {
+/// 	let buffer = "(\"Hello, World\")".to_owned();
+/// 	let mut buffer = CharStream::new(buffer).build();
+/// 
+/// 	let value = Group::<tokens::Paren, StringValue>::parse(&mut buffer);
+/// 	assert!(value.is_ok());
+/// 
+/// 	let buffer = "[0, 1, 2]".to_owned();
+/// 	let mut buffer = CharStream::new(buffer).build();
+/// 
+/// 	let value = Group::<tokens::Bracket, List<Number, tokens::Comma>>::parse(&mut buffer);
+/// 	assert!(value.is_ok());
+/// # }
+/// ```
+pub struct Group<D, I> where D: tokens::Delimiter, I: Parse {
 	delimiter: D,
 	item: I
 }
@@ -81,7 +101,37 @@ impl<D, I> fmt::Debug for Group<D, I> where
     }
 }
 
-pub struct List<I, S> {
+
+/// A List represents a collection of items, separated by a token.
+/// It has two generic types:
+/// - `I` is the type of item, it has to implement [`Parse`].
+/// - `S` is the token that separates the items. it has to implement [`tokens::Token`].
+/// ```
+/// # use parseal::parsing::{charstream::CharStream, tokens, Group, StringValue, Number, List, Parse};
+/// # fn main() {
+/// 	let buffer = "0, 1, 5".to_owned();
+/// 	let mut buffer = CharStream::new(buffer).build();
+/// 
+/// 	let value = List::<Number, tokens::Comma>::parse(&mut buffer);
+/// 	assert!(value.is_ok());
+/// 
+/// 	let buffer = "".to_owned();
+/// 	let mut buffer = CharStream::new(buffer).build();
+/// 
+/// 	let value = List::<StringValue, tokens::Pipe>::parse(&mut buffer);
+/// 	assert!(value.is_ok()); 
+/// 	// A List can also be empty.
+/// 
+/// 	let buffer = "1012".to_owned();
+/// 	let mut buffer = CharStream::new(buffer).build();
+/// 
+/// 	let value = List::<StringValue, tokens::Pipe>::parse(&mut buffer);
+/// 	assert!(value.is_ok()); 
+/// 	// the parse function is not guaranteed to consume the entire buffer.
+/// 	// in this case it will not consume anything from the buffer, yet return an Ok variant, as the List is allowed to be empty.
+/// # }
+/// ```
+pub struct List<I, S> where I: Parse, S: tokens::Token {
 	items: Vec<(I, Option<S>)>,
 	span: Span
 }
@@ -135,6 +185,17 @@ impl<I, S> fmt::Debug for List<I, S> where
     }
 }
 
+/// StringValue represents a string.
+/// this is necessary because it needs to store some additional information for the AST, like the info necessary for [`Parse::span`].
+/// ```
+/// # use parseal::parsing::{StringValue, Parse, charstream::CharStream};
+/// # fn main() {
+/// 	let mut buffer = CharStream::new("\"Hello, world!\"".to_owned()).build();
+/// 	let value = StringValue::parse(&mut buffer);
+/// 
+/// 	assert!(value.is_ok());
+/// # }
+/// ```
 #[derive(Clone)]
 pub struct StringValue {
 	delim: tokens::Quote,
@@ -179,6 +240,32 @@ impl fmt::Debug for StringValue {
     }
 }
 
+/// An Identifier represents things like words and names.
+/// ```
+/// # use parseal::parsing::{charstream::CharStream, Identifier, Parse, tokens, self};
+/// 
+/// # fn main() {
+/// 	let buffer = "hello world".to_owned();
+/// 	let mut buffer = CharStream::new(buffer).build();
+/// 	
+/// 	let value = Vec::<Identifier>::parse(&mut buffer).unwrap();
+/// 	assert_eq!(value.len(), 2);
+/// 
+/// 	#[cfg(feature="derive")]
+/// 	{
+/// 		# use parseal::Parsable;
+/// 		#[derive(Parsable)]
+/// 		enum Bool {
+/// 			True(#[value("true")] Identifier),
+/// 			False(#[value("false")] Identifier)
+/// 		}
+/// 
+/// 		let mut buffer = CharStream::new("true | false".to_owned()).build();
+/// 		let value = <(Bool, tokens::Pipe, Bool)>::parse(&mut buffer);
+/// 		assert!(value.is_ok());
+/// 	}
+/// # }
+/// ```
 #[derive(Clone)]
 pub struct Identifier {
 	identifier: String,
@@ -235,6 +322,17 @@ impl PartialEq<&str> for Identifier {
     }
 }
 
+/// A Number is a representation of a number, duh.
+/// this representation is needed since it needs to store some additional information for the AST.
+/// ```
+/// # use parseal::parsing::{Number, Parse, charstream::CharStream};
+/// # fn main() {
+/// 	let mut buffer = CharStream::new("69420".to_owned()).build();
+/// 	let value = Number::parse(&mut buffer);
+/// 
+/// 	assert!(value.is_ok());
+/// # }
+/// ```
 #[derive(Clone)]
 pub struct Number {
 	value: String,

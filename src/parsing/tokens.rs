@@ -192,6 +192,8 @@ create_tokens! {
     = Equal,
     == EqualEqual,
     : Colon,
+    ; Semicolon,
+    | Pipe,
     < Less,
     > Greater,
     / ForwardSlash
