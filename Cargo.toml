@@ -4,7 +4,7 @@ version = "0.2.0"
 edition = "2021"
 license-file = "LICENSE"
 readme = "README.md"
-repository = "https://github.com/TheLazyDutchman/ffs/"
+repository = "https://github.com/TheLazyDutchman/parseal/"
 keywords = ["parsing"]
 description = "An easy way to create your own parsers"
 

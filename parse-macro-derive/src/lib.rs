@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{DeriveInput, parse_macro_input, Data, Error, DataUnion, spanned::Spanned, DataStruct, DataEnum};
+use syn::{DeriveInput, parse_macro_input, Data, Error, DataUnion, spanned::Spanned, DataStruct, DataEnum, GenericParam};
 
 mod derive_struct;
 mod derive_enum;
@@ -25,8 +25,26 @@ pub fn parsable_fn(item: TokenStream) -> TokenStream {
             => return TokenStream::from(Error::new(union_token.span(), "Can not derive parse from a union type").to_compile_error())
     };
 
+    let generics_end = if generics.params.is_empty() {
+        quote! {}
+    } else {
+        let params = generics.params.iter();
+        let params = params.map(|param| match param {
+            GenericParam::Const(value) => {
+                let ident = &value.ident;
+                quote! {
+                    #ident
+                }
+            }
+            param => quote! {#param}
+        });
+        quote! {
+            <#(#params),*>
+        }
+    };
+
     let gen = quote! {
-        impl #generics Parse for #ident #generics {
+        impl #generics Parse for #ident #generics_end {
             fn parse(value: &mut parsing::charstream::CharStream) -> ::std::result::Result<Self, parsing::ParseError> {
                 #parse_body
             }
