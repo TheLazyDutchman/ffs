@@ -1,5 +1,5 @@
 [package]
-name = "parse-macro-derive"
+name = "parseal-derive"
 version = "0.2.0"
 edition = "2021"
 description = "derive macro for the parseal crate"
