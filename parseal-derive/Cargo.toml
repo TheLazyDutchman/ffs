@@ -2,6 +2,7 @@
 name = "parseal-derive"
 version = "0.2.0"
 edition = "2021"
+readme = "README.md"
 description = "derive macro for the parseal crate"
 repository = "https://github.com/TheLazyDutchman/parseal/"
 license-file = "../LICENSE"
