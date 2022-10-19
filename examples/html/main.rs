@@ -2,29 +2,28 @@
 
 use std::fs;
 
-use parse_macro_derive::Parsable;
-use ffs::parsing::{tokens::{Less, Greater, Equal, ForwardSlash}, Parse, self, Identifier, StringValue, charstream::CharStream};
+use parseal::{parsing::{tokens::{Less, Greater, Equal, ForwardSlash}, Parse, self, Identifier, StringValue, charstream::CharStream}, Parsable};
 
-#[derive(Parsable, Debug)]
+#[derive(Parsable, Debug, Clone)]
 pub struct HTML {
     parts: Vec<Scope>
 }
 
-#[derive(Parsable, Debug)]
+#[derive(Parsable, Debug, Clone)]
 pub struct LabelArg(Identifier, Equal, StringValue);
 
-#[derive(Parsable, Debug)]
+#[derive(Parsable, Debug, Clone)]
 pub struct LabelArgs {
     args: Vec<LabelArg>
 }
 
-#[derive(Parsable, Debug)]
+#[derive(Parsable, Debug, Clone)]
 pub struct StartLabel(Less, Identifier, Vec<LabelArgs>, Greater);
 
-#[derive(Parsable, Debug)]
+#[derive(Parsable, Debug, Clone)]
 pub struct EndLabel(Less, ForwardSlash, Identifier, Greater);
 
-#[derive(Parsable, Debug)]
+#[derive(Parsable, Debug, Clone)]
 pub struct Scope {
     start: StartLabel,
     end: EndLabel

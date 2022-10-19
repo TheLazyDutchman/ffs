@@ -6,7 +6,7 @@ pub trait Token: Parse + fmt::Display {
 
 }
 
-pub trait Delimiter {
+pub trait Delimiter: Clone {
 	type Start: Token;
 	type End: Token;
 
@@ -18,6 +18,7 @@ pub trait Delimiter {
 macro_rules! create_tokens {
     ($($token:tt $id:ident),+) => {
         $(
+            #[derive(Clone)]
             pub struct $id {
                 span: super::Span
             }
@@ -46,7 +47,7 @@ macro_rules! create_tokens {
                         return Ok(Self { span: super::Span::new(start, end)});
                     }
 
-                    Err(ParseError::not_found(concat!("Could not find token '", stringify!($token), "'."), token_value.position()))
+                    Err(ParseError(format!("Could not find token '{}'.", stringify!($token)), token_value.position()))
                 }
 
                 fn span(&self) -> super::Span {
@@ -72,6 +73,7 @@ macro_rules! create_tokens {
 macro_rules! create_delimiters {
     ($($token:tt $left: ident $right: ident $delim:ident),+) => {
         $(
+            #[derive(Clone)]
             pub struct $left {
                 span: super::Span
             }
@@ -92,7 +94,7 @@ macro_rules! create_delimiters {
                         }
                     }
 
-                    Err(ParseError::not_found(concat!("could not find left side of: '", stringify!($token), "'."), value.position()))
+                    Err(ParseError(format!("could not find left side of: '{}'.", stringify!($token)), value.position()))
                 }
 
                 fn span(&self) -> super::Span {
@@ -112,6 +114,7 @@ macro_rules! create_delimiters {
                 }
             }
 
+            #[derive(Clone)]
             pub struct $right {
                 span: super::Span
             }
@@ -132,7 +135,7 @@ macro_rules! create_delimiters {
                         }
                     }
 
-                    Err(ParseError::not_found(concat!("could not find right side of: '", stringify!($token), "'."), value.position()))
+                    Err(ParseError(format!("could not find right side of: '{}'.", stringify!($token)), value.position()))
                 }
 
                 fn span(&self) -> super::Span {
@@ -152,7 +155,7 @@ macro_rules! create_delimiters {
                 }
             }
 
-            #[derive(Debug)]
+            #[derive(Debug, Clone)]
             pub struct $delim {
                 start: $left,
                 end: $right
@@ -189,6 +192,8 @@ create_tokens! {
     = Equal,
     == EqualEqual,
     : Colon,
+    ; Semicolon,
+    | Pipe,
     < Less,
     > Greater,
     / ForwardSlash

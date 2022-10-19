@@ -67,5 +67,6 @@ This is a list of the traits that you can use from this library.
 Used for any parsable value.
 #### Functions
 |name|description|args|return type|
+|---|---|---|---|
 |`parse`|try to parse a value of the type that implements the trait|`value: &mut CharStream`|`Result<Self, ParseError>`|
 |`span`|get the `Span` of the current object|`&self`|`Span`|

@@ -5,47 +5,48 @@ use std::fmt;
 
 use self::{charstream::{CharStream, Position, WhitespaceType, Span}, tokens::Delimiter};
 
-pub trait Parse {
+pub trait Parse: Clone {
 	fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized;
 	fn span(&self) -> Span;
 }
 
 #[derive(Clone)]
-pub enum ParseError {
-	NotFound(String, Position),
-	Error(String, Position),
-	EOF(Position)
-}
+pub struct ParseError(String, Position);
 
 impl ParseError {
-	pub fn not_found(cause: &str, position: Position) -> ParseError {
-		ParseError::NotFound(cause.to_owned(), position)
-	}
-
-	pub fn error(cause: &str, position: Position) -> ParseError {
-		ParseError::Error(cause.to_owned(), position)
-	}
-
-	pub fn to_error(self, message: &str) -> Self {
-		match self {
-			Self::NotFound(cause, position) => ParseError::Error(format!("{}: {}", message, cause), position),
-			Self::Error(cause, position) => ParseError::Error(cause, position),
-			Self::EOF(position) => ParseError::Error(format!("{}: {}", message, "Reached end of file"), position)
-		}
+	pub fn new(cause: &str, position: Position) -> Self {
+		Self(cause.to_string(), position)
 	}
 }
 
 impl fmt::Debug for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-			Self::NotFound(cause, position) => write!(f, "{}:{}:NotFound: '{}'", position.row, position.column, cause),
-			Self::Error(cause, position) => write!(f, "{}:{}:Error: '{}'", position.row, position.column, cause),
-			Self::EOF(position) => write!(f, "{}:{}: {}", position.row, position.column, "Reached end of file.")
-        }
+		write!(f, "{}:{}:Error: '{}'", self.1.row, self.1.column, self.0)
     }
 }
 
-pub struct Group<D, I> {
+/// A Group represents a delimited item.
+/// Group has two Generic types:
+/// - `D` is the delimiter tokens around the item, it has to a type that implements [`tokens::Delimiter`].
+/// - `I` is the type of item inside the delimiters, it has to implement [`Parse`].
+/// ```
+/// # use parseal::parsing::{charstream::CharStream, tokens, Group, StringValue, Number, List, Parse};
+/// # fn main() {
+/// 	let buffer = "(\"Hello, World\")".to_owned();
+/// 	let mut buffer = CharStream::new(buffer).build();
+/// 
+/// 	let value = Group::<tokens::Paren, StringValue>::parse(&mut buffer);
+/// 	assert!(value.is_ok());
+/// 
+/// 	let buffer = "[0, 1, 2]".to_owned();
+/// 	let mut buffer = CharStream::new(buffer).build();
+/// 
+/// 	let value = Group::<tokens::Bracket, List<Number, tokens::Comma>>::parse(&mut buffer);
+/// 	assert!(value.is_ok());
+/// # }
+/// ```
+#[derive(Clone)]
+pub struct Group<D, I> where D: tokens::Delimiter, I: Parse {
 	delimiter: D,
 	item: I
 }
@@ -56,13 +57,10 @@ impl<D, I> Parse for Group<D, I> where
 {
     fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
 		let start = D::Start::parse(value)?;
-		let item = match I::parse(value) {
-			Ok(value) => value,
-			Err(err) => return Err(err.to_error("Could not parse group"))
-		};
+		let item = I::parse(value)?;
 		let end = match D::End::parse(value) {
 			Ok(value) => value,
-			Err(err) => return Err(err.to_error("Could not parse group"))
+			Err(error) => return Err(error)
 		};
 
 		let delimiter = D::new(start, end);
@@ -84,7 +82,38 @@ impl<D, I> fmt::Debug for Group<D, I> where
     }
 }
 
-pub struct List<I, S> {
+
+/// A List represents a collection of items, separated by a token.
+/// It has two generic types:
+/// - `I` is the type of item, it has to implement [`Parse`].
+/// - `S` is the token that separates the items. it has to implement [`tokens::Token`].
+/// ```
+/// # use parseal::parsing::{charstream::CharStream, tokens, Group, StringValue, Number, List, Parse};
+/// # fn main() {
+/// 	let buffer = "0, 1, 5".to_owned();
+/// 	let mut buffer = CharStream::new(buffer).build();
+/// 
+/// 	let value = List::<Number, tokens::Comma>::parse(&mut buffer);
+/// 	assert!(value.is_ok());
+/// 
+/// 	let buffer = "".to_owned();
+/// 	let mut buffer = CharStream::new(buffer).build();
+/// 
+/// 	let value = List::<StringValue, tokens::Pipe>::parse(&mut buffer);
+/// 	assert!(value.is_ok()); 
+/// 	// A List can also be empty.
+/// 
+/// 	let buffer = "1012".to_owned();
+/// 	let mut buffer = CharStream::new(buffer).build();
+/// 
+/// 	let value = List::<StringValue, tokens::Pipe>::parse(&mut buffer);
+/// 	assert!(value.is_ok()); 
+/// 	// the parse function is not guaranteed to consume the entire buffer.
+/// 	// in this case it will not consume anything from the buffer, yet return an Ok variant, as the List is allowed to be empty.
+/// # }
+/// ```
+#[derive(Clone)]
+pub struct List<I, S> where I: Parse, S: tokens::Token {
 	items: Vec<(I, Option<S>)>,
 	span: Span
 }
@@ -138,6 +167,18 @@ impl<I, S> fmt::Debug for List<I, S> where
     }
 }
 
+/// StringValue represents a string.
+/// this is necessary because it needs to store some additional information for the AST, like the info necessary for [`Parse::span`].
+/// ```
+/// # use parseal::parsing::{StringValue, Parse, charstream::CharStream};
+/// # fn main() {
+/// 	let mut buffer = CharStream::new("\"Hello, world!\"".to_owned()).build();
+/// 	let value = StringValue::parse(&mut buffer);
+/// 
+/// 	assert!(value.is_ok());
+/// # }
+/// ```
+#[derive(Clone)]
 pub struct StringValue {
 	delim: tokens::Quote,
 	value: String
@@ -181,6 +222,32 @@ impl fmt::Debug for StringValue {
     }
 }
 
+/// An Identifier represents things like words and names.
+/// ```
+/// # use parseal::parsing::{charstream::CharStream, Identifier, Parse, tokens, self};
+/// 
+/// # fn main() {
+/// 	let buffer = "hello world".to_owned();
+/// 	let mut buffer = CharStream::new(buffer).build();
+/// 	
+/// 	let value = Vec::<Identifier>::parse(&mut buffer).unwrap();
+/// 	assert_eq!(value.len(), 2);
+/// 
+/// 	#[cfg(feature="derive")]
+/// 	{
+/// 		# use parseal::Parsable;
+/// 		#[derive(Parsable, Clone)]
+/// 		enum Bool {
+/// 			True(#[value("true")] Identifier),
+/// 			False(#[value("false")] Identifier)
+/// 		}
+/// 
+/// 		let mut buffer = CharStream::new("true | false".to_owned()).build();
+/// 		let value = <(Bool, tokens::Pipe, Bool)>::parse(&mut buffer);
+/// 		assert!(value.is_ok());
+/// 	}
+/// # }
+/// ```
 #[derive(Clone)]
 pub struct Identifier {
 	identifier: String,
@@ -212,7 +279,7 @@ impl Parse for Identifier {
 
 				value.goto(position)?;
 			}
-			_ => return Err(ParseError::not_found("Did not find identifier", ident_value.position()))
+			_ => return Err(ParseError("Did not find identifier".to_string(), ident_value.position()))
 		}
 
 		let end = value.position();
@@ -231,6 +298,24 @@ impl fmt::Debug for Identifier {
     }
 }
 
+impl PartialEq<&str> for Identifier {
+    fn eq(&self, other: &&str) -> bool {
+        self.identifier == other.to_owned()
+    }
+}
+
+/// A Number is a representation of a number, duh.
+/// this representation is needed since it needs to store some additional information for the AST.
+/// ```
+/// # use parseal::parsing::{Number, Parse, charstream::CharStream};
+/// # fn main() {
+/// 	let mut buffer = CharStream::new("69420".to_owned()).build();
+/// 	let value = Number::parse(&mut buffer);
+/// 
+/// 	assert!(value.is_ok());
+/// # }
+/// ```
+#[derive(Clone)]
 pub struct Number {
 	value: String,
 	span: Span
@@ -261,7 +346,7 @@ impl Parse for Number {
 
 				value.goto(position)?;
 			}
-			_ => return Err(ParseError::not_found("Did not find number", num_value.position()))
+			_ => return Err(ParseError("Did not find number".to_string(), num_value.position()))
 		}
 
 		let end = value.position();
@@ -280,6 +365,7 @@ impl fmt::Debug for Number {
     }
 }
 
+#[derive(Clone)]
 pub struct Indent<T> {
 	values: Vec<T>,
 	depth: u8
@@ -306,7 +392,7 @@ impl<T> Parse for Indent<T> where T: Parse {
 		}
 
 		if values.len() == 0 {
-			Err(ParseError::not_found("Could not find Indent block.", position))
+			Err(ParseError("Could not find Indent block.".to_string(), position))
 		} else {
 			Ok(Self { values, depth })
 		}
@@ -334,7 +420,7 @@ impl<T> Parse for Vec<T> where T: Parse {
 		}
 
 		if vec.len() == 0 {
-			Err(ParseError::NotFound("Could not find vector.".to_string(), value.position()))
+			Err(ParseError("Could not find vector.".to_string(), value.position()))
 		} else {
 			Ok(vec)
 		}
@@ -355,7 +441,7 @@ impl<T, const N: usize> Parse for [T; N] where T: Parse + fmt::Debug {
 
 		match <[T; N]>::try_from(result) {
 			Ok(result) => Ok(result),
-			Err(error) => Err(ParseError::error(&format!("Could not create slice from parsed values. \nvalues where: {:?}", error), value.position()))
+			Err(error) => Err(ParseError(format!("Could not create slice from parsed values. \nvalues where: {:?}", error), value.position()))
 		}
     }
 

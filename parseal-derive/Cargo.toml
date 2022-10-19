@@ -1,9 +1,10 @@
 [package]
-name = "parse-macro-derive"
-version = "0.1.1"
+name = "parseal-derive"
+version = "0.2.1"
 edition = "2021"
+readme = "README.md"
 description = "derive macro for the parseal crate"
-repository = "https://github.com/TheLazyDutchman/ffs/"
+repository = "https://github.com/TheLazyDutchman/parseal/"
 license-file = "../LICENSE"
 
 [lib]

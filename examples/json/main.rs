@@ -2,36 +2,35 @@
 
 use std::fs;
 
-use parse_macro_derive::Parsable;
-use ffs::parsing::{self, Group, List, tokens::{Bracket, Comma, Brace, Colon}, Number, StringValue, Parse, charstream::CharStream, Identifier};
+use parseal::{parsing::{self, Group, List, tokens::{Bracket, Comma, Brace, Colon}, Number, StringValue, Parse, charstream::CharStream, Identifier}, Parsable};
 
-#[derive(Debug, Parsable)]
+#[derive(Debug, Parsable, Clone)]
 pub struct JSONList {
 	list: Group<Bracket,
 		List<JSONNode, Comma>>
 }
 
-#[derive(Debug, Parsable)]
+#[derive(Debug, Parsable, Clone)]
 pub struct NamedValue {
 	name: StringValue,
 	colon: Colon,
 	value: JSONNode
 }
 
-#[derive(Debug, Parsable)]
+#[derive(Debug, Parsable, Clone)]
 pub struct JSONObject {
 	map: Group<Brace,
 		List<NamedValue, Comma>>
 }
 
-#[derive(Debug, Parsable)]
+#[derive(Debug, Parsable, Clone)]
 pub enum Value {
 	String(StringValue),
 	Number(Number),
 	Bool(Identifier)
 }
 
-#[derive(Debug, Parsable)]
+#[derive(Debug, Parsable, Clone)]
 pub enum JSONNode {
 	List(JSONList),
 	Object(JSONObject),
