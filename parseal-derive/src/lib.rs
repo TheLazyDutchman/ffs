@@ -1,20 +1,21 @@
 use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
-use syn::{DeriveInput, parse_macro_input, Data, Error, spanned::Spanned, DataStruct, DataEnum, Ident, Fields, Field, Attribute, Meta, MetaList, Index};
+use syn::{DeriveInput, parse_macro_input, Data, Error, spanned::Spanned, DataStruct, DataEnum, Ident, Fields, Field, Attribute, Meta, MetaList, Index, Generics};
 
 
 #[proc_macro_derive(Parsable, attributes(whitespace, value))]
 pub fn parsable_fn(item: TokenStream) -> TokenStream {
     let item = parse_macro_input!(item as DeriveInput);
     match &item.data {
-        Data::Struct(value) => derive_struct(&item.ident, value),
-        Data::Enum(value) => derive_enum(&item.ident, value),
+        Data::Struct(value) => derive_struct(&item.ident, value, &item.generics),
+        Data::Enum(value) => derive_enum(&item.ident, value, &item.generics),
         Data::Union(_) => TokenStream::from(Error::new(item.span(), "Can not derive Parse from a union type.").to_compile_error())
     }
 }
 
-fn derive_struct(ident: &Ident, value: &DataStruct) -> TokenStream {
+fn derive_struct(ident: &Ident, value: &DataStruct, generics: &Generics) -> TokenStream {
     let fields = value.fields.iter().collect::<Vec<_>>();
+
     let definitions = derive_fields(fields.clone());
     let parse_result = match &value.fields {
         Fields::Named(fields) => {
@@ -34,10 +35,12 @@ fn derive_struct(ident: &Ident, value: &DataStruct) -> TokenStream {
         }
         Fields::Unit => return TokenStream::from(Error::new(ident.span(), "Can not derive trait Parse for a unit struct.").to_compile_error())
     };
+
     let first_ident = get_ident(&fields.first().unwrap().ident, 0);
     let last_ident = get_ident(&fields.last().unwrap().ident, fields.len() - 1);
+    let (impl_generics, type_generics, where_clause) = generics.split_for_impl();
     quote! {
-        impl Parse for #ident {
+        impl #impl_generics Parse for #ident #type_generics #where_clause {
             fn parse(value: &mut parsing::charstream::CharStream) -> ::std::result::Result<Self, parsing::ParseError> {
                 #(#definitions)*
                 #parse_result
@@ -50,7 +53,7 @@ fn derive_struct(ident: &Ident, value: &DataStruct) -> TokenStream {
     }.into()
 }
 
-fn derive_enum(ident: &Ident, value: &DataEnum) -> TokenStream {
+fn derive_enum(ident: &Ident, value: &DataEnum, generics: &Generics) -> TokenStream {
     let variants = value.variants.iter().map(|variant| {
         let ident = Ident::new(&format!("__parse_{}", variant.ident.to_string().to_lowercase()), variant.span());
         (&variant.ident, ident, &variant.fields, &variant.attrs)
@@ -99,12 +102,14 @@ fn derive_enum(ident: &Ident, value: &DataEnum) -> TokenStream {
         }
     });
 
+    let (impl_generics, type_generics, where_clause) = generics.split_for_impl();
+
     quote! {
-        impl #ident {
+        impl #impl_generics #ident #type_generics #where_clause {
             #(#variant_functions)*
         }
 
-        impl Parse for #ident {
+        impl #impl_generics Parse for #ident #type_generics #where_clause {
             fn parse(value: &mut parsing::charstream::CharStream) -> ::std::result::Result<Self, parsing::ParseError> {
                 let mut options = Vec::new();
                 let mut error = None;

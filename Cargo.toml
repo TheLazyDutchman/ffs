@@ -16,6 +16,7 @@ rand = "0.8.0"
 
 [features]
 derive = ["dep:parseal-derive"]
+data-formats = ["derive"]
 
 [[example]]
 name = "html"

@@ -184,6 +184,12 @@ pub struct StringValue {
 	value: String
 }
 
+impl From<StringValue> for String {
+    fn from(string: StringValue) -> Self {
+        string.value
+    }
+}
+
 impl Parse for StringValue {
 	fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
 		let left = <tokens::Quote as tokens::Delimiter>::Start::parse(value)?;
@@ -254,6 +260,12 @@ pub struct Identifier {
 	span: Span
 }
 
+impl Identifier {
+	pub fn name(&self) -> String {
+		self.identifier.clone()
+	}
+}
+
 impl Parse for Identifier {
 	fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
 		let mut identifier = String::new();
@@ -319,6 +331,12 @@ impl PartialEq<&str> for Identifier {
 pub struct Number {
 	value: String,
 	span: Span
+}
+
+impl From<Number> for usize {
+    fn from(number: Number) -> Self {
+        number.value.parse().unwrap()
+    }
 }
 
 impl Parse for Number {
