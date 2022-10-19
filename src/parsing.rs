@@ -5,7 +5,7 @@ use std::fmt;
 
 use self::{charstream::{CharStream, Position, WhitespaceType, Span}, tokens::Delimiter};
 
-pub trait Parse {
+pub trait Parse: Clone {
 	fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized;
 	fn span(&self) -> Span;
 }
@@ -65,6 +65,7 @@ impl fmt::Debug for ParseError {
 /// 	assert!(value.is_ok());
 /// # }
 /// ```
+#[derive(Clone)]
 pub struct Group<D, I> where D: tokens::Delimiter, I: Parse {
 	delimiter: D,
 	item: I
@@ -131,6 +132,7 @@ impl<D, I> fmt::Debug for Group<D, I> where
 /// 	// in this case it will not consume anything from the buffer, yet return an Ok variant, as the List is allowed to be empty.
 /// # }
 /// ```
+#[derive(Clone)]
 pub struct List<I, S> where I: Parse, S: tokens::Token {
 	items: Vec<(I, Option<S>)>,
 	span: Span

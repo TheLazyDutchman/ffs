@@ -24,7 +24,7 @@ pub enum Value {
 	Bool(#[value("true", "false")] Identifier)
 }
 
-#[derive(Parsable, Debug)]
+#[derive(Parsable, Debug, Clone)]
 pub struct YAML {
 	#[whitespace(KeepAll)]
 	start: [tokens::Hyphen; 3],

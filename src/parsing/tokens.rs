@@ -6,7 +6,7 @@ pub trait Token: Parse + fmt::Display {
 
 }
 
-pub trait Delimiter {
+pub trait Delimiter: Clone {
 	type Start: Token;
 	type End: Token;
 
