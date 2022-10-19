@@ -11,37 +11,17 @@ pub trait Parse: Clone {
 }
 
 #[derive(Clone)]
-pub enum ParseError {
-	NotFound(String, Position),
-	Error(String, Position),
-	EOF(Position)
-}
+pub struct ParseError(String, Position);
 
 impl ParseError {
-	pub fn not_found(cause: &str, position: Position) -> ParseError {
-		ParseError::NotFound(cause.to_owned(), position)
-	}
-
-	pub fn error(cause: &str, position: Position) -> ParseError {
-		ParseError::Error(cause.to_owned(), position)
-	}
-
-	pub fn to_error(self, message: &str) -> Self {
-		match self {
-			Self::NotFound(cause, position) => ParseError::Error(format!("{}: {}", message, cause), position),
-			Self::Error(cause, position) => ParseError::Error(cause, position),
-			Self::EOF(position) => ParseError::Error(format!("{}: {}", message, "Reached end of file"), position)
-		}
+	pub fn new(cause: &str, position: Position) -> Self {
+		Self(cause.to_string(), position)
 	}
 }
 
 impl fmt::Debug for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-			Self::NotFound(cause, position) => write!(f, "{}:{}:NotFound: '{}'", position.row, position.column, cause),
-			Self::Error(cause, position) => write!(f, "{}:{}:Error: '{}'", position.row, position.column, cause),
-			Self::EOF(position) => write!(f, "{}:{}: {}", position.row, position.column, "Reached end of file.")
-        }
+		write!(f, "{}:{}:Error: '{}'", self.1.row, self.1.column, self.0)
     }
 }
 
@@ -80,7 +60,7 @@ impl<D, I> Parse for Group<D, I> where
 		let item = I::parse(value)?;
 		let end = match D::End::parse(value) {
 			Ok(value) => value,
-			Err(error) => return Err(error.to_error("Could not parse group"))
+			Err(error) => return Err(error)
 		};
 
 		let delimiter = D::new(start, end);
@@ -256,7 +236,7 @@ impl fmt::Debug for StringValue {
 /// 	#[cfg(feature="derive")]
 /// 	{
 /// 		# use parseal::Parsable;
-/// 		#[derive(Parsable)]
+/// 		#[derive(Parsable, Clone)]
 /// 		enum Bool {
 /// 			True(#[value("true")] Identifier),
 /// 			False(#[value("false")] Identifier)
@@ -299,7 +279,7 @@ impl Parse for Identifier {
 
 				value.goto(position)?;
 			}
-			_ => return Err(ParseError::not_found("Did not find identifier", ident_value.position()))
+			_ => return Err(ParseError("Did not find identifier".to_string(), ident_value.position()))
 		}
 
 		let end = value.position();
@@ -366,7 +346,7 @@ impl Parse for Number {
 
 				value.goto(position)?;
 			}
-			_ => return Err(ParseError::not_found("Did not find number", num_value.position()))
+			_ => return Err(ParseError("Did not find number".to_string(), num_value.position()))
 		}
 
 		let end = value.position();
@@ -412,7 +392,7 @@ impl<T> Parse for Indent<T> where T: Parse {
 		}
 
 		if values.len() == 0 {
-			Err(ParseError::not_found("Could not find Indent block.", position))
+			Err(ParseError("Could not find Indent block.".to_string(), position))
 		} else {
 			Ok(Self { values, depth })
 		}
@@ -440,7 +420,7 @@ impl<T> Parse for Vec<T> where T: Parse {
 		}
 
 		if vec.len() == 0 {
-			Err(ParseError::NotFound("Could not find vector.".to_string(), value.position()))
+			Err(ParseError("Could not find vector.".to_string(), value.position()))
 		} else {
 			Ok(vec)
 		}
@@ -461,7 +441,7 @@ impl<T, const N: usize> Parse for [T; N] where T: Parse + fmt::Debug {
 
 		match <[T; N]>::try_from(result) {
 			Ok(result) => Ok(result),
-			Err(error) => Err(ParseError::error(&format!("Could not create slice from parsed values. \nvalues where: {:?}", error), value.position()))
+			Err(error) => Err(ParseError(format!("Could not create slice from parsed values. \nvalues where: {:?}", error), value.position()))
 		}
     }
 

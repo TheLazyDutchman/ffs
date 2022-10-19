@@ -183,7 +183,7 @@ fn derive_fields(fields: Vec<&Field>) -> Vec<quote::__private::TokenStream> {
                     ::std::result::Result::Ok(inner) if inner == #meta => inner
                 }).collect::<Vec<_>>();
                 values.push(quote! { 
-                    ::std::result::Result::Ok(inner) => return ::std::result::Result::Err(parsing::ParseError::error("Value was not one of the expected values.", value.position()))
+                    ::std::result::Result::Ok(inner) => return ::std::result::Result::Err(parsing::ParseError::new("Value was not one of the expected values.", value.position()))
                 });
                 values.push(quote! { 
                     ::std::result::Result::Err(error) => return ::std::result::Result::Err(error)

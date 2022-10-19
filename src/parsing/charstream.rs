@@ -211,15 +211,15 @@ impl CharStream {
 
 	pub fn goto(&mut self, position: Position) -> Result<(), ParseError> {
 		if self.file_id != position.file_id {
-			return Err(ParseError::error("Could not go to position in different buffer.", position));
+			return Err(ParseError("Could not go to position in different buffer.".to_string(), position));
 		}
 
 		if position < self.position() {
-			return Err(ParseError::error("Charstream does not support going back.", position));
+			return Err(ParseError("Charstream does not support going back.".to_string(), position));
 		}
 
 		if position > self.eof {
-			return Err(ParseError::error("Charstream can not go to position after end of buffer.", self.eof.clone()));
+			return Err(ParseError("Charstream can not go to position after end of buffer.".to_string(), self.eof.clone()));
 		}
 
 		while self.position() < position {

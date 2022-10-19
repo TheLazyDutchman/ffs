@@ -47,7 +47,7 @@ macro_rules! create_tokens {
                         return Ok(Self { span: super::Span::new(start, end)});
                     }
 
-                    Err(ParseError::not_found(concat!("Could not find token '", stringify!($token), "'."), token_value.position()))
+                    Err(ParseError(format!("Could not find token '{}'.", stringify!($token)), token_value.position()))
                 }
 
                 fn span(&self) -> super::Span {
@@ -94,7 +94,7 @@ macro_rules! create_delimiters {
                         }
                     }
 
-                    Err(ParseError::not_found(concat!("could not find left side of: '", stringify!($token), "'."), value.position()))
+                    Err(ParseError(format!("could not find left side of: '{}'.", stringify!($token)), value.position()))
                 }
 
                 fn span(&self) -> super::Span {
@@ -135,7 +135,7 @@ macro_rules! create_delimiters {
                         }
                     }
 
-                    Err(ParseError::not_found(concat!("could not find right side of: '", stringify!($token), "'."), value.position()))
+                    Err(ParseError(format!("could not find right side of: '{}'.", stringify!($token)), value.position()))
                 }
 
                 fn span(&self) -> super::Span {
