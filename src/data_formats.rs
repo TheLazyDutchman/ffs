@@ -3,14 +3,16 @@ use std::collections::HashMap;
 use crate::{Parsable, parsing::{self, tokens, Parse, StringValue, Number, Identifier}};
 
 #[derive(Clone, Parsable, Debug)]
-pub struct NamedValue<S, I>(StringValue, S, I) where S: tokens::Token, I: Parse;
+pub struct NamedValue<N, S, I>(N, S, I) where N: Parse, S: tokens::Token, I: Parse;
 
-impl<T, S, I> From<NamedValue<S, I>> for (String, T) where
+impl<T, N, S, I> From<NamedValue<N, S, I>> for (String, T) where
 	T: From<I>,
+	N: Parse,
+	String: From<N>,
 	S: tokens::Token,
 	I: Parse
 {
-	fn from(value: NamedValue<S, I>) -> Self {
+	fn from(value: NamedValue<N, S, I>) -> Self {
 		(value.0.into(), value.2.into())
 	}
 }
@@ -25,9 +27,7 @@ pub enum ParseValue {
 #[derive(Parsable, Clone, Debug)]
 pub enum ParseNode<Object, List> where 
 	Object: Parse, 
-	List: Parse,
-	HashMap<String, ParseNode<Object, List>>: From<Object>,
-	Vec<ParseNode<Object, List>>: From<List>
+	List: Parse
 {
 	Value(ParseValue),
 	Object(Object),
@@ -81,5 +81,34 @@ impl<Object, List> From<ParseNode<Object, List>> for Node where
 				Self::List(list)
 			}
 		}
+    }
+}
+
+pub trait TreeData {
+	type Object: Parse;
+	type List: Parse;
+
+	fn value(&self) -> ParseNode<Self::Object, Self::List>;
+}
+
+impl<
+	Object: Parse, 
+	List: Parse,
+	T: TreeData<Object = Object, List = List>> From<T> for Node where
+	HashMap<String, ParseNode<Object, List>>: From<Object>,
+	Vec<ParseNode<Object, List>>: From<List>
+{
+	fn from(tree: T) -> Self {
+		tree.value().into()
+	}
+}
+
+impl<
+	Object: Parse,
+	List: Parse,
+	T: TreeData<Object = Object, List = List>> From<T> 
+for ParseNode<T::Object, T::List> {
+    fn from(tree: T) -> Self {
+        tree.value()
     }
 }

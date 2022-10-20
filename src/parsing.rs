@@ -337,6 +337,12 @@ impl Parse for Identifier {
 	}
 }
 
+impl From<Identifier> for String {
+    fn from(ident: Identifier) -> Self {
+        ident.identifier.clone()
+    }
+}
+
 impl fmt::Debug for Identifier {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Identifier({}, from {})", self.identifier, self.span)
@@ -422,7 +428,7 @@ pub struct Indent<T> {
 	depth: u8
 }
 
-impl<T> Parse for Indent<T> where T: Parse {
+impl<T: fmt::Debug> Parse for Indent<T> where T: Parse {
     fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
         let mut values = Vec::new();
 
@@ -457,6 +463,27 @@ impl<T> Parse for Indent<T> where T: Parse {
 impl<T> fmt::Debug for Indent<T> where T: fmt::Debug + Parse {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		write!(f, "Indent({:#?}, from {}, depth {})", self.values, self.span(), self.depth)
+    }
+}
+
+impl<T, I> From<Indent<I>> for Vec<T> where
+	T: From<I>,
+	I: Clone
+{
+    fn from(indent: Indent<I>) -> Self {
+        indent.values.iter().map(|item| item.clone().into()).collect()
+    }
+}
+
+#[cfg(feature = "data-formats")]
+impl<T, I, S> From<Indent<I>> for HashMap<S, T> where 
+	(S, T): From<I>, I: Clone,
+	S: std::cmp::Eq + std::hash::Hash,
+{
+    fn from(indent: Indent<I>) -> Self {
+        let mut map = HashMap::new();
+		map.extend::<Vec<(S, T)>>(indent.into());
+		map
     }
 }
 

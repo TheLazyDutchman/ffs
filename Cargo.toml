@@ -28,4 +28,4 @@ required-features = ["data-formats"]
 
 [[example]]
 name = "yaml"
-required-features = ["derive"]
+required-features = ["data-formats"]
