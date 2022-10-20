@@ -1,40 +1,26 @@
 #![allow(unused)]
 
-use std::fs;
+use std::{fs, collections::HashMap};
 
 use parseal::{parsing::{self, Group, List, tokens::{Bracket, Comma, Brace, Colon}, Number, StringValue, Parse, charstream::CharStream, Identifier}, Parsable};
+use parseal::data_formats::{ParseNode, Node, NamedValue};
 
-#[derive(Debug, Parsable, Clone)]
-pub struct JSONList {
-	list: Group<Bracket,
-		List<JSONNode, Comma>>
+#[derive(Clone, Parsable, Debug)]
+pub struct JSON {
+	value: ParseNode<
+			Group<Brace, List<NamedValue<Colon, JSON>, Comma>>,
+			Group<Bracket, List<JSON, Comma>>
+		>
 }
 
-#[derive(Debug, Parsable, Clone)]
-pub struct NamedValue {
-	name: StringValue,
-	colon: Colon,
-	value: JSONNode
-}
-
-#[derive(Debug, Parsable, Clone)]
-pub struct JSONObject {
-	map: Group<Brace,
-		List<NamedValue, Comma>>
-}
-
-#[derive(Debug, Parsable, Clone)]
-pub enum Value {
-	String(StringValue),
-	Number(Number),
-	Bool(Identifier)
-}
-
-#[derive(Debug, Parsable, Clone)]
-pub enum JSONNode {
-	List(JSONList),
-	Object(JSONObject),
-	Value(Value)
+impl From<JSON> for ParseNode<
+			Group<Brace, List<NamedValue<Colon, JSON>, Comma>>,
+			Group<Bracket, List<JSON, Comma>>
+		>
+{
+	fn from(json: JSON) -> Self {
+	    json.value
+	}
 }
 
 fn main() {
@@ -42,6 +28,12 @@ fn main() {
 		.expect("Expected example file to exist.");
 
 	let mut buffer = CharStream::new(file).build();
-	let value = JSONNode::parse(&mut buffer);
+	let value = JSON::parse(&mut buffer).unwrap();
+
+	let node: Node = <ParseNode<
+			Group<Brace, List<NamedValue<Colon, JSON>, Comma>>,
+			Group<Bracket, List<JSON, Comma>>
+		> as Into<Node>>::into(value.clone().into());
 	println!("value: {:#?}", value);
+	println!("node: {:#?}", node);
 }

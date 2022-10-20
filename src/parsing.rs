@@ -1,7 +1,7 @@
 pub mod tokens;
 pub mod charstream;
 
-use std::fmt;
+use std::{fmt, collections::HashMap};
 
 use self::{charstream::{CharStream, Position, WhitespaceType, Span}, tokens::Delimiter};
 
@@ -79,6 +79,29 @@ impl<D, I> fmt::Debug for Group<D, I> where
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		write!(f, "Group({:#?}, delim: {}, from {})", self.item, D::name(), self.span())
+    }
+}
+
+impl<T, D, I> From<Group<D, I>> for Vec<T> where
+	Vec<T>: From<I>,
+	D: tokens::Delimiter,
+	I: Parse
+{
+    fn from(group: Group<D, I>) -> Self {
+		group.item.into()
+    }
+}
+
+impl<S, T, D, I> From<Group<D, I>> for HashMap<S, T> where
+	Vec<(S, T)>: From<I>,
+	D: tokens::Delimiter,
+	I: Parse,
+	S: std::cmp::Eq + std::hash::Hash
+{
+    fn from(group: Group<D, I>) -> Self {
+		let mut map = HashMap::new();
+		map.extend::<Vec<_>>(group.item.into());
+		map
     }
 }
 
@@ -164,6 +187,16 @@ impl<I, S> fmt::Debug for List<I, S> where
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		write!(f, "List({:#?}, from {})", self.items, self.span())
+    }
+}
+
+impl<T, I, S> From<List<I, S>> for Vec<T> where
+	T: From<I>,
+	I: Parse,
+	S: tokens::Token
+{
+    fn from(list: List<I, S>) -> Self {
+		list.items.iter().map(|(item, _)| item.clone().into()).collect()
     }
 }
 

@@ -24,7 +24,7 @@ required-features = ["derive"]
 
 [[example]]
 name = "json"
-required-features = ["derive"]
+required-features = ["data-formats"]
 
 [[example]]
 name = "yaml"

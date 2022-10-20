@@ -1,15 +1,28 @@
 use std::collections::HashMap;
 
-use crate::{Parsable, parsing::{self, Parse, StringValue, Number, Identifier}};
+use crate::{Parsable, parsing::{self, tokens, Parse, StringValue, Number, Identifier}};
 
-#[derive(Parsable, Clone)]
+#[derive(Clone, Parsable, Debug)]
+pub struct NamedValue<S, I>(StringValue, S, I) where S: tokens::Token, I: Parse;
+
+impl<T, S, I> From<NamedValue<S, I>> for (String, T) where
+	T: From<I>,
+	S: tokens::Token,
+	I: Parse
+{
+	fn from(value: NamedValue<S, I>) -> Self {
+		(value.0.into(), value.2.into())
+	}
+}
+
+#[derive(Parsable, Clone, Debug)]
 pub enum ParseValue {
 	String(StringValue),
 	Number(Number),
 	Bool(#[value("true", "false")] Identifier)
 }
 
-#[derive(Parsable, Clone)]
+#[derive(Parsable, Clone, Debug)]
 pub enum ParseNode<Object, List> where 
 	Object: Parse, 
 	List: Parse,
@@ -21,6 +34,7 @@ pub enum ParseNode<Object, List> where
 	List(List)
 }
 
+#[derive(Debug)]
 pub enum Value {
 	String(String),
 	Number(usize),
@@ -37,6 +51,7 @@ impl From<ParseValue> for Value {
     }
 }
 
+#[derive(Debug)]
 pub enum Node {
 	Value(Value),
 	Object(HashMap<String, Node>),
