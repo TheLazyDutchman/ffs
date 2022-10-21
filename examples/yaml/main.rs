@@ -12,15 +12,9 @@ pub struct ListPart {
     value: YAMLNode,
 }
 
-impl From<ListPart> for YAMLNode {
-    fn from(part: ListPart) -> Self {
-        part.value.clone()
-    }
-}
-
 impl From<ListPart> for ParseNode<<YAMLNode as TreeData>::Object, <YAMLNode as TreeData>::List> {
     fn from(value: ListPart) -> Self {
-        value.into()
+        value.value.into()
     }
 }
 
@@ -41,6 +35,7 @@ impl TreeData for YAMLNode {
 
 #[derive(Debug, Clone, Parsable)]
 pub struct YAML {
+    start: [tokens::Hyphen; 3],
     value: YAMLNode,
 }
 
@@ -50,7 +45,7 @@ pub fn main() {
     let mut charstream = CharStream::new(file).build();
     let value = YAML::parse(&mut charstream).unwrap();
 
-    let node: Node = value.value.clone().into();
     println!("value: {:#?}", value);
+    let node: Node = value.value.into();
     println!("value: {:#?}", node);
 }

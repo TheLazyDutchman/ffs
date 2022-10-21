@@ -513,7 +513,7 @@ where
             pos = indent_value.pos();
             values.push(item?);
             item = T::parse(&mut indent_value);
-
+            
             if indent_value.indent() != depth {
                 break;
             }

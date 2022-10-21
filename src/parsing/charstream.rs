@@ -79,11 +79,19 @@ impl Span {
 
 impl PartialOrd for Span {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        println!("a: {}, b: {}", self, other);
         match self.start.partial_cmp(&other.start) {
-            Some(core::cmp::Ordering::Equal) => {}
-            ord => return ord,
+            Some(std::cmp::Ordering::Less) => match self.end.partial_cmp(&other.end) {
+                Some(std::cmp::Ordering::Less) | None => None,
+                Some(std::cmp::Ordering::Equal) | Some(std::cmp::Ordering::Greater) => Some(std::cmp::Ordering::Greater)
+            }
+            Some(std::cmp::Ordering::Equal) => self.end.partial_cmp(&other.end),
+            Some(std::cmp::Ordering::Greater) => match self.end.partial_cmp(&other.end) {
+                Some(std::cmp::Ordering::Greater) | None => None,
+                Some(std::cmp::Ordering::Equal) | Some(std::cmp::Ordering::Less) => Some(std::cmp::Ordering::Less)
+            }
+            None => None
         }
-        self.end.partial_cmp(&other.end)
     }
 }
 

@@ -96,7 +96,7 @@ fn derive_enum(ident: &Ident, value: &DataEnum, generics: &Generics) -> TokenStr
             let mut __value = value.clone();
             match Self::#func_ident(&mut __value) {
                 ::std::result::Result::Ok(inner) => {
-                    value.goto(__value.pos())?;
+                    position = __value.pos();
                     options.push(inner);
                 }
                 ::std::result::Result::Err(err) => error = ::std::option::Option::Some(err)
@@ -142,9 +142,16 @@ fn derive_enum(ident: &Ident, value: &DataEnum, generics: &Generics) -> TokenStr
             fn parse(value: &mut parsing::charstream::CharStream) -> ::std::result::Result<Self, parsing::ParseError> {
                 let mut options = Vec::new();
                 let mut error = None;
+                let mut position = value.pos();
                 #(#parse_variants)*
                 options.sort_by(|a, b| a.span().partial_cmp(&b.span()).unwrap());
-                options.first().and_then(|option| Some(option.clone())).ok_or(error.unwrap())
+                match options.first() {
+                    Some(option) => {
+                        value.goto(position.clone())?;
+                        Ok(option.clone())
+                    }
+                    None => Err(error.unwrap()),
+                }
             }
 
             fn span(&self) -> parsing::charstream::Span {

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt};
 
 use crate::{
     parsing::{self, tokens, Identifier, Number, Parse, StringValue},
@@ -35,8 +35,8 @@ pub enum ParseValue {
 #[derive(Parsable, Clone, Debug)]
 pub enum ParseNode<Object, List>
 where
-    Object: Parse,
-    List: Parse,
+    Object: Parse + fmt::Debug,
+    List: Parse + fmt::Debug,
 {
     Value(ParseValue),
     Object(Object),
@@ -69,8 +69,8 @@ pub enum Node {
 
 impl<Object, List> From<ParseNode<Object, List>> for Node
 where
-    Object: Parse,
-    List: Parse,
+    Object: Parse + fmt::Debug,
+    List: Parse + fmt::Debug,
     HashMap<String, ParseNode<Object, List>>: From<Object>,
     Vec<ParseNode<Object, List>>: From<List>,
 {
@@ -98,13 +98,13 @@ where
 }
 
 pub trait TreeData {
-    type Object: Parse;
-    type List: Parse;
+    type Object: Parse + fmt::Debug;
+    type List: Parse + fmt::Debug;
 
     fn value(&self) -> ParseNode<Self::Object, Self::List>;
 }
 
-impl<Object: Parse, List: Parse, T: TreeData<Object = Object, List = List>> From<T> for Node
+impl<Object: Parse + fmt::Debug, List: Parse + fmt::Debug, T: TreeData<Object = Object, List = List> + fmt::Debug> From<T> for Node
 where
     HashMap<String, ParseNode<Object, List>>: From<Object>,
     Vec<ParseNode<Object, List>>: From<List>,
@@ -114,7 +114,7 @@ where
     }
 }
 
-impl<Object: Parse, List: Parse, T: TreeData<Object = Object, List = List>> From<T>
+impl<Object: Parse + fmt::Debug, List: Parse + fmt::Debug, T: TreeData<Object = Object, List = List>> From<T>
     for ParseNode<T::Object, T::List>
 {
     fn from(tree: T) -> Self {
