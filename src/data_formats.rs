@@ -104,7 +104,11 @@ pub trait TreeData {
     fn value(&self) -> ParseNode<Self::Object, Self::List>;
 }
 
-impl<Object: Parse + fmt::Debug, List: Parse + fmt::Debug, T: TreeData<Object = Object, List = List> + fmt::Debug> From<T> for Node
+impl<
+        Object: Parse + fmt::Debug,
+        List: Parse + fmt::Debug,
+        T: TreeData<Object = Object, List = List> + fmt::Debug,
+    > From<T> for Node
 where
     HashMap<String, ParseNode<Object, List>>: From<Object>,
     Vec<ParseNode<Object, List>>: From<List>,
@@ -114,8 +118,11 @@ where
     }
 }
 
-impl<Object: Parse + fmt::Debug, List: Parse + fmt::Debug, T: TreeData<Object = Object, List = List>> From<T>
-    for ParseNode<T::Object, T::List>
+impl<
+        Object: Parse + fmt::Debug,
+        List: Parse + fmt::Debug,
+        T: TreeData<Object = Object, List = List>,
+    > From<T> for ParseNode<T::Object, T::List>
 {
     fn from(tree: T) -> Self {
         tree.value()

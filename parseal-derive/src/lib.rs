@@ -212,9 +212,10 @@ fn derive_variant_function(
 }
 
 fn derive_fields(fields: Vec<&Field>) -> Vec<quote::__private::TokenStream> {
-    let fields = fields.iter().enumerate().map(|(i, field)| {
-        (inner_ident(&field.ident, i), &field.ty, &field.attrs)
-    });
+    let fields = fields
+        .iter()
+        .enumerate()
+        .map(|(i, field)| (inner_ident(&field.ident, i), &field.ty, &field.attrs));
     fields.map(|(ident, ty, attrs)| {
         let whitespace_attr = get_attr(attrs, "whitespace");
         let value_attr = get_attr(attrs, "value");

@@ -513,17 +513,14 @@ where
             pos = indent_value.pos();
             values.push(item?);
             item = T::parse(&mut indent_value);
-            
+
             if indent_value.indent() != depth {
                 break;
             }
         }
 
         if values.is_empty() {
-            Err(ParseError(
-                "Could not find Indent block.".to_string(),
-                pos,
-            ))
+            Err(ParseError("Could not find Indent block.".to_string(), pos))
         } else {
             Ok(Self { values, depth })
         }

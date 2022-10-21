@@ -1,6 +1,6 @@
 [package]
 name = "parseal-derive"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2021"
 readme = "README.md"
 description = "derive macro for the parseal crate"
