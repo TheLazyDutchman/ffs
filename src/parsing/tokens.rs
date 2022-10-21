@@ -1,16 +1,16 @@
 use std::fmt;
 
-use super::{Parse, ParseError, charstream::CharStream};
+use super::{charstream::CharStream, Parse, ParseError};
 
-pub trait Token: Parse + fmt::Display {
-
-}
+pub trait Token: Parse + fmt::Display {}
 
 pub trait Delimiter: Clone {
-	type Start: Token;
-	type End: Token;
+    type Start: Token;
+    type End: Token;
 
-	fn new(start: Self::Start, end: Self::End) -> Self where Self: Sized;
+    fn new(start: Self::Start, end: Self::End) -> Self
+    where
+        Self: Sized;
     fn span(&self) -> super::Span;
     fn name() -> String;
 }
@@ -22,9 +22,9 @@ macro_rules! create_tokens {
             pub struct $id {
                 span: super::Span
             }
-            
+
             impl Token for $id {}
-            
+
             impl Parse for $id {
                 fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
                     let token = stringify!($token);

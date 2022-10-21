@@ -1,12 +1,21 @@
 #![allow(unused)]
 
-use std::{fs, collections::HashMap};
+use std::{collections::HashMap, fs};
 
-use parseal::{parsing::{self, Group, List, tokens::{Bracket, Comma, Brace, Colon}, Number, StringValue, Parse, charstream::CharStream, Identifier}, Parsable, data_formats::{TreeData, ParseNode, NamedValue, Node}};
+use parseal::{
+    data_formats::{NamedValue, Node, ParseNode, TreeData},
+    parsing::{
+        self,
+        charstream::CharStream,
+        tokens::{Brace, Bracket, Colon, Comma},
+        Group, Identifier, List, Number, Parse, StringValue,
+    },
+    Parsable,
+};
 
 #[derive(Clone, Parsable, Debug)]
 pub struct JSON {
-	value: ParseNode<<JSON as TreeData>::Object, <JSON as TreeData>::List>
+    value: ParseNode<<JSON as TreeData>::Object, <JSON as TreeData>::List>,
 }
 
 impl TreeData for JSON {
@@ -20,13 +29,13 @@ impl TreeData for JSON {
 }
 
 fn main() {
-	let file = fs::read_to_string("examples/json/example.json")
-		.expect("Expected example file to exist.");
+    let file =
+        fs::read_to_string("examples/json/example.json").expect("Expected example file to exist.");
 
-	let mut buffer = CharStream::new(file).build();
-	let value = JSON::parse(&mut buffer).unwrap();
+    let mut buffer = CharStream::new(file).build();
+    let value = JSON::parse(&mut buffer).unwrap();
 
-	let node: Node = value.clone().into();
-	println!("value: {:#?}", value);
-	println!("node: {:#?}", node);
+    let node: Node = value.clone().into();
+    println!("value: {:#?}", value);
+    println!("node: {:#?}", node);
 }

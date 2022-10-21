@@ -1,11 +1,15 @@
 use std::fs;
 
-use parseal::{parsing::{self, charstream::CharStream, Parse, tokens, Indent, Identifier}, Parsable, data_formats::{TreeData, ParseNode, NamedValue, Node}};
+use parseal::{
+    data_formats::{NamedValue, Node, ParseNode, TreeData},
+    parsing::{self, charstream::CharStream, tokens, Identifier, Indent, Parse},
+    Parsable,
+};
 
 #[derive(Clone, Parsable, Debug)]
 pub struct ListPart {
-	token: tokens::Hyphen,
-	value: YAMLNode
+    token: tokens::Hyphen,
+    value: YAMLNode,
 }
 
 impl From<ListPart> for YAMLNode {
@@ -22,7 +26,7 @@ impl From<ListPart> for ParseNode<<YAMLNode as TreeData>::Object, <YAMLNode as T
 
 #[derive(Parsable, Debug, Clone)]
 pub struct YAMLNode {
-	value: ParseNode<<YAMLNode as TreeData>::Object, <YAMLNode as TreeData>::List>
+    value: ParseNode<<YAMLNode as TreeData>::Object, <YAMLNode as TreeData>::List>,
 }
 
 impl TreeData for YAMLNode {
@@ -37,16 +41,16 @@ impl TreeData for YAMLNode {
 
 #[derive(Debug, Clone, Parsable)]
 pub struct YAML {
-	value: YAMLNode
+    value: YAMLNode,
 }
 
-pub fn main () {
-	let file = fs::read_to_string("examples/yaml/example.yaml").unwrap();
+pub fn main() {
+    let file = fs::read_to_string("examples/yaml/example.yaml").unwrap();
 
-	let mut charstream = CharStream::new(file).build();
-	let value = YAML::parse(&mut charstream).unwrap();
+    let mut charstream = CharStream::new(file).build();
+    let value = YAML::parse(&mut charstream).unwrap();
 
-	let node: Node = value.value.clone().into();
-	println!("value: {:#?}", value);
-	println!("value: {:#?}", node);
+    let node: Node = value.value.clone().into();
+    println!("value: {:#?}", value);
+    println!("value: {:#?}", node);
 }
