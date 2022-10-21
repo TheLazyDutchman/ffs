@@ -27,7 +27,7 @@ fn derive_struct(ident: &Ident, value: &DataStruct, generics: &Generics) -> Toke
             let inner_fields = fields
                 .clone()
                 .enumerate()
-                .map(|(i, field)| inner_ident(&field, i));
+                .map(|(i, field)| inner_ident(field, i));
             quote! {
                 ::std::result::Result::Ok(Self {
                     #(#fields: #inner_fields),*
@@ -96,7 +96,7 @@ fn derive_enum(ident: &Ident, value: &DataEnum, generics: &Generics) -> TokenStr
             let mut __value = value.clone();
             match Self::#func_ident(&mut __value) {
                 ::std::result::Result::Ok(inner) => {
-                    value.goto(__value.position())?;
+                    value.goto(__value.pos())?;
                     options.push(inner);
                 }
                 ::std::result::Result::Err(err) => error = ::std::option::Option::Some(err)
@@ -169,7 +169,7 @@ fn derive_variant_function(
             let inner_fields = fields
                 .clone()
                 .enumerate()
-                .map(|(i, field)| inner_ident(&field, i));
+                .map(|(i, field)| inner_ident(field, i));
             quote! {
                 ::std::result::Result::Ok(Self::#field_ident {
                     #(#fields: #inner_fields),*
@@ -206,12 +206,11 @@ fn derive_variant_function(
 
 fn derive_fields(fields: Vec<&Field>) -> Vec<quote::__private::TokenStream> {
     let fields = fields.iter().enumerate().map(|(i, field)| {
-        let field = field.clone().clone();
-        (inner_ident(&field.ident, i), field.ty, field.attrs)
+        (inner_ident(&field.ident, i), &field.ty, &field.attrs)
     });
     fields.map(|(ident, ty, attrs)| {
-        let whitespace_attr = get_attr(&attrs, "whitespace");
-        let value_attr = get_attr(&attrs, "value");
+        let whitespace_attr = get_attr(attrs, "whitespace");
+        let value_attr = get_attr(attrs, "value");
 
         let value = match whitespace_attr {
             Some(attr) => {
@@ -222,7 +221,7 @@ fn derive_fields(fields: Vec<&Field>) -> Vec<quote::__private::TokenStream> {
                         __whitespace_value.set_whitespace(parsing::charstream::WhitespaceType::#whitespace);
 
                         let inner =  <#ty>::parse(&mut __whitespace_value);
-                        value.goto(__whitespace_value.position())?;
+                        value.goto(__whitespace_value.pos())?;
                         inner
                     }
                 }
@@ -237,7 +236,7 @@ fn derive_fields(fields: Vec<&Field>) -> Vec<quote::__private::TokenStream> {
                     ::std::result::Result::Ok(inner) if inner == #meta => inner
                 }).collect::<Vec<_>>();
                 values.push(quote! {
-                    ::std::result::Result::Ok(inner) => return ::std::result::Result::Err(parsing::ParseError::new("Value was not one of the expected values.", value.position()))
+                    ::std::result::Result::Ok(inner) => return ::std::result::Result::Err(parsing::ParseError::new("Value was not one of the expected values.", value.pos()))
                 });
                 values.push(quote! {
                     ::std::result::Result::Err(error) => return ::std::result::Result::Err(error)
@@ -258,7 +257,7 @@ fn derive_fields(fields: Vec<&Field>) -> Vec<quote::__private::TokenStream> {
     }).collect::<Vec<_>>()
 }
 
-fn get_attr(attrs: &Vec<Attribute>, value: &str) -> Option<MetaList> {
+fn get_attr(attrs: &[Attribute], value: &str) -> Option<MetaList> {
     attrs.iter().find_map(|attr| match attr.path.get_ident() {
         Some(ident) if ident == value => match attr.parse_meta() {
             Ok(Meta::List(list)) => Some(list),
@@ -275,7 +274,7 @@ fn inner_ident(ident: &Option<Ident>, index: usize) -> Ident {
 
 fn get_ident(ident: &Option<Ident>, index: usize) -> quote::__private::TokenStream {
     match ident {
-        Some(ident) => <Ident as ToTokens>::to_token_stream(&ident),
+        Some(ident) => <Ident as ToTokens>::to_token_stream(ident),
         None => <Index as ToTokens>::to_token_stream(&Index::from(index)),
     }
 }

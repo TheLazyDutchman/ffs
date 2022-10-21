@@ -3,7 +3,7 @@ use std::{fmt, vec::IntoIter};
 
 use super::ParseError;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Position {
     pub column: usize,
     pub row: usize,
@@ -65,7 +65,7 @@ impl fmt::Display for Position {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Span {
     pub start: Position,
     pub end: Position,
@@ -159,7 +159,7 @@ impl CharStream {
         CharStreamBuilder::new(value)
     }
 
-    pub fn position(&self) -> Position {
+    pub fn pos(&self) -> Position {
         Position {
             column: self.column,
             row: self.row,
@@ -169,7 +169,48 @@ impl CharStream {
         }
     }
 
-    pub fn next(&mut self) -> Option<char> {
+    pub fn goto(&mut self, position: Position) -> Result<(), ParseError> {
+        if self.file_id != position.file_id {
+            return Err(ParseError(
+                "Could not go to position in different buffer.".to_string(),
+                position,
+            ));
+        }
+
+        if position < self.pos() {
+            return Err(ParseError(
+                "Charstream does not support going back.".to_string(),
+                position,
+            ));
+        }
+
+        if position > self.eof {
+            return Err(ParseError(
+                "Charstream can not go to position after end of buffer.".to_string(),
+                self.eof.clone(),
+            ));
+        }
+
+        while self.pos() < position {
+            self.next();
+        }
+
+        Ok(())
+    }
+
+    pub fn set_whitespace(&mut self, whitespace: WhitespaceType) {
+        self.whitespace = whitespace;
+    }
+
+    pub fn indent(&self) -> u8 {
+        self.indent
+    }
+}
+
+impl Iterator for CharStream {
+    type Item = char;
+
+    fn next(&mut self) -> Option<Self::Item> {
         let chr = match self.chars.next() {
             Some('\n') => {
                 self.index += 1;
@@ -218,42 +259,5 @@ impl CharStream {
                 }
             },
         }
-    }
-
-    pub fn goto(&mut self, position: Position) -> Result<(), ParseError> {
-        if self.file_id != position.file_id {
-            return Err(ParseError(
-                "Could not go to position in different buffer.".to_string(),
-                position,
-            ));
-        }
-
-        if position < self.position() {
-            return Err(ParseError(
-                "Charstream does not support going back.".to_string(),
-                position,
-            ));
-        }
-
-        if position > self.eof {
-            return Err(ParseError(
-                "Charstream can not go to position after end of buffer.".to_string(),
-                self.eof.clone(),
-            ));
-        }
-
-        while self.position() < position {
-            self.next();
-        }
-
-        Ok(())
-    }
-
-    pub fn set_whitespace(&mut self, whitespace: WhitespaceType) {
-        self.whitespace = whitespace;
-    }
-
-    pub fn indent(&self) -> u8 {
-        self.indent
     }
 }

@@ -29,7 +29,7 @@ macro_rules! create_tokens {
                 fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
                     let token = stringify!($token);
                     let len = token.len();
-                    let start = value.position();
+                    let start = value.pos();
 
                     let mut token_value = value.clone();
 
@@ -42,12 +42,12 @@ macro_rules! create_tokens {
                     }
 
                     if (token == mtch) {
-                        value.goto(token_value.position())?;
-                        let end = value.position();
+                        value.goto(token_value.pos())?;
+                        let end = value.pos();
                         return Ok(Self { span: super::Span::new(start, end)});
                     }
 
-                    Err(ParseError(format!("Could not find token '{}'.", stringify!($token)), token_value.position()))
+                    Err(ParseError(format!("Could not find token '{}'.", stringify!($token)), token_value.pos()))
                 }
 
                 fn span(&self) -> super::Span {
@@ -84,17 +84,17 @@ macro_rules! create_delimiters {
                 fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
                     let chr = stringify!($token).chars().nth(0).unwrap();
                     let mut token_value = value.clone();
-                    let start = value.position();
+                    let start = value.pos();
 
                     if let Some(token) = token_value.next() {
                         if token == chr {
-                            value.goto(token_value.position())?;
-                            let end = value.position();
+                            value.goto(token_value.pos())?;
+                            let end = value.pos();
                             return Ok(Self { span: super::Span::new(start, end)})
                         }
                     }
 
-                    Err(ParseError(format!("could not find left side of: '{}'.", stringify!($token)), value.position()))
+                    Err(ParseError(format!("could not find left side of: '{}'.", stringify!($token)), value.pos()))
                 }
 
                 fn span(&self) -> super::Span {
@@ -125,17 +125,17 @@ macro_rules! create_delimiters {
                 fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
                     let chr = stringify!($token).chars().nth(1).unwrap();
                     let mut token_value = value.clone();
-                    let start = value.position();
+                    let start = value.pos();
 
                     if let Some(token) = token_value.next() {
                         if token == chr {
-                            value.goto(token_value.position())?;
-                            let end = value.position();
+                            value.goto(token_value.pos())?;
+                            let end = value.pos();
                             return Ok(Self { span: super::Span::new(start, end)})
                         }
                     }
 
-                    Err(ParseError(format!("could not find right side of: '{}'.", stringify!($token)), value.position()))
+                    Err(ParseError(format!("could not find right side of: '{}'.", stringify!($token)), value.pos()))
                 }
 
                 fn span(&self) -> super::Span {

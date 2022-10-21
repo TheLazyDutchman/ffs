@@ -19,8 +19,8 @@ pub trait Parse: Clone {
 pub struct ParseError(String, Position);
 
 impl ParseError {
-    pub fn new(cause: &str, position: Position) -> Self {
-        Self(cause.to_string(), position)
+    pub fn new(cause: &str, pos: Position) -> Self {
+        Self(cause.to_string(), pos)
     }
 }
 
@@ -37,17 +37,17 @@ impl fmt::Debug for ParseError {
 /// ```
 /// # use parseal::parsing::{charstream::CharStream, tokens, Group, StringValue, Number, List, Parse};
 /// # fn main() {
-/// 	let buffer = "(\"Hello, World\")".to_owned();
-/// 	let mut buffer = CharStream::new(buffer).build();
+///     let buffer = "(\"Hello, World\")".to_owned();
+///     let mut buffer = CharStream::new(buffer).build();
 ///
-/// 	let value = Group::<tokens::Paren, StringValue>::parse(&mut buffer);
-/// 	assert!(value.is_ok());
+///     let value = Group::<tokens::Paren, StringValue>::parse(&mut buffer);
+///     assert!(value.is_ok());
 ///
-/// 	let buffer = "[0, 1, 2]".to_owned();
-/// 	let mut buffer = CharStream::new(buffer).build();
+///     let buffer = "[0, 1, 2]".to_owned();
+///     let mut buffer = CharStream::new(buffer).build();
 ///
-/// 	let value = Group::<tokens::Bracket, List<Number, tokens::Comma>>::parse(&mut buffer);
-/// 	assert!(value.is_ok());
+///     let value = Group::<tokens::Bracket, List<Number, tokens::Comma>>::parse(&mut buffer);
+///     assert!(value.is_ok());
 /// # }
 /// ```
 #[derive(Clone)]
@@ -134,26 +134,26 @@ where
 /// ```
 /// # use parseal::parsing::{charstream::CharStream, tokens, Group, StringValue, Number, List, Parse};
 /// # fn main() {
-/// 	let buffer = "0, 1, 5".to_owned();
-/// 	let mut buffer = CharStream::new(buffer).build();
+///     let buffer = "0, 1, 5".to_owned();
+///     let mut buffer = CharStream::new(buffer).build();
 ///
-/// 	let value = List::<Number, tokens::Comma>::parse(&mut buffer);
-/// 	assert!(value.is_ok());
+///     let value = List::<Number, tokens::Comma>::parse(&mut buffer);
+///     assert!(value.is_ok());
 ///
-/// 	let buffer = "".to_owned();
-/// 	let mut buffer = CharStream::new(buffer).build();
+///     let buffer = "".to_owned();
+///     let mut buffer = CharStream::new(buffer).build();
 ///
-/// 	let value = List::<StringValue, tokens::Pipe>::parse(&mut buffer);
-/// 	assert!(value.is_ok());
-/// 	// A List can also be empty.
+///     let value = List::<StringValue, tokens::Pipe>::parse(&mut buffer);
+///     assert!(value.is_ok());
+///     // A List can also be empty.
 ///
-/// 	let buffer = "1012".to_owned();
-/// 	let mut buffer = CharStream::new(buffer).build();
+///     let buffer = "1012".to_owned();
+///     let mut buffer = CharStream::new(buffer).build();
 ///
-/// 	let value = List::<StringValue, tokens::Pipe>::parse(&mut buffer);
-/// 	assert!(value.is_ok());
-/// 	// the parse function is not guaranteed to consume the entire buffer.
-/// 	// in this case it will not consume anything from the buffer, yet return an Ok variant, as the List is allowed to be empty.
+///     let value = List::<StringValue, tokens::Pipe>::parse(&mut buffer);
+///     assert!(value.is_ok());
+///     // the parse function is not guaranteed to consume the entire buffer.
+///     // in this case it will not consume anything from the buffer, yet return an Ok variant, as the List is allowed to be empty.
 /// # }
 /// ```
 #[derive(Clone)]
@@ -176,13 +176,13 @@ where
         Self: Sized,
     {
         let mut items = Vec::new();
-        let start = value.position();
+        let start = value.pos();
 
         loop {
             let item = match I::parse(value) {
                 Ok(value) => value,
                 Err(error) => {
-                    if items.len() > 0 {
+                    if !items.is_empty() {
                         return Err(error);
                     }
                     break;
@@ -200,7 +200,7 @@ where
             items.push((item, separator));
         }
 
-        let end = value.position();
+        let end = value.pos();
 
         Ok(Self {
             items,
@@ -242,10 +242,10 @@ where
 /// ```
 /// # use parseal::parsing::{StringValue, Parse, charstream::CharStream};
 /// # fn main() {
-/// 	let mut buffer = CharStream::new("\"Hello, world!\"".to_owned()).build();
-/// 	let value = StringValue::parse(&mut buffer);
+///     let mut buffer = CharStream::new("\"Hello, world!\"".to_owned()).build();
+///     let value = StringValue::parse(&mut buffer);
 ///
-/// 	assert!(value.is_ok());
+///     assert!(value.is_ok());
 /// # }
 /// ```
 #[derive(Clone)]
@@ -270,20 +270,20 @@ impl Parse for StringValue {
 
         let mut string_value = value.clone();
 
-        let mut position = string_value.position();
+        let mut pos = string_value.pos();
 
         string_value.set_whitespace(WhitespaceType::KeepAll);
         loop {
             match string_value.next() {
                 Some(value) if value != '"' => {
                     inner_value.push(value);
-                    position = string_value.position();
+                    pos = string_value.pos();
                 }
                 _ => break,
             }
         }
 
-        value.goto(position)?;
+        value.goto(pos)?;
 
         let right = <tokens::Quote as tokens::Delimiter>::End::parse(value)?;
 
@@ -309,25 +309,25 @@ impl fmt::Debug for StringValue {
 /// # use parseal::parsing::{charstream::CharStream, Identifier, Parse, tokens, self};
 ///
 /// # fn main() {
-/// 	let buffer = "hello world".to_owned();
-/// 	let mut buffer = CharStream::new(buffer).build();
+///     let buffer = "hello world".to_owned();
+///     let mut buffer = CharStream::new(buffer).build();
 ///
-/// 	let value = Vec::<Identifier>::parse(&mut buffer).unwrap();
-/// 	assert_eq!(value.len(), 2);
+///     let value = Vec::<Identifier>::parse(&mut buffer).unwrap();
+///     assert_eq!(value.len(), 2);
 ///
-/// 	#[cfg(feature="derive")]
-/// 	{
-/// 		# use parseal::Parsable;
-/// 		#[derive(Parsable, Clone)]
-/// 		enum Bool {
-/// 			True(#[value("true")] Identifier),
-/// 			False(#[value("false")] Identifier)
-/// 		}
+///     #[cfg(feature="derive")]
+///     {
+///         # use parseal::Parsable;
+///         #[derive(Parsable, Clone)]
+///         enum Bool {
+///             True(#[value("true")] Identifier),
+///             False(#[value("false")] Identifier)
+///         }
 ///
-/// 		let mut buffer = CharStream::new("true | false".to_owned()).build();
-/// 		let value = <(Bool, tokens::Pipe, Bool)>::parse(&mut buffer);
-/// 		assert!(value.is_ok());
-/// 	}
+///         let mut buffer = CharStream::new("true | false".to_owned()).build();
+///         let value = <(Bool, tokens::Pipe, Bool)>::parse(&mut buffer);
+///         assert!(value.is_ok());
+///     }
 /// # }
 /// ```
 #[derive(Clone)]
@@ -348,12 +348,12 @@ impl Parse for Identifier {
         Self: Sized,
     {
         let mut identifier = String::new();
-        let start = value.position();
+        let start = value.pos();
 
         let mut ident_value = value.clone();
         match ident_value.next() {
             Some(chr) if chr.is_alphabetic() => {
-                let mut position = ident_value.position();
+                let mut pos = ident_value.pos();
                 identifier.push(chr);
 
                 ident_value.set_whitespace(WhitespaceType::KeepAll);
@@ -362,23 +362,23 @@ impl Parse for Identifier {
                     match ident_value.next() {
                         Some(value) if value.is_alphanumeric() => {
                             identifier.push(value);
-                            position = ident_value.position();
+                            pos = ident_value.pos();
                         }
                         _ => break,
                     }
                 }
 
-                value.goto(position)?;
+                value.goto(pos)?;
             }
             _ => {
                 return Err(ParseError(
                     "Did not find identifier".to_string(),
-                    ident_value.position(),
+                    ident_value.pos(),
                 ))
             }
         }
 
-        let end = value.position();
+        let end = value.pos();
 
         Ok(Self {
             identifier,
@@ -393,7 +393,7 @@ impl Parse for Identifier {
 
 impl From<Identifier> for String {
     fn from(ident: Identifier) -> Self {
-        ident.identifier.clone()
+        ident.identifier
     }
 }
 
@@ -405,7 +405,7 @@ impl fmt::Debug for Identifier {
 
 impl PartialEq<&str> for Identifier {
     fn eq(&self, other: &&str) -> bool {
-        self.identifier == other.to_owned()
+        &self.identifier == other
     }
 }
 
@@ -414,10 +414,10 @@ impl PartialEq<&str> for Identifier {
 /// ```
 /// # use parseal::parsing::{Number, Parse, charstream::CharStream};
 /// # fn main() {
-/// 	let mut buffer = CharStream::new("69420".to_owned()).build();
-/// 	let value = Number::parse(&mut buffer);
+///     let mut buffer = CharStream::new("69420".to_owned()).build();
+///     let value = Number::parse(&mut buffer);
 ///
-/// 	assert!(value.is_ok());
+///     assert!(value.is_ok());
 /// # }
 /// ```
 #[derive(Clone)]
@@ -438,12 +438,12 @@ impl Parse for Number {
         Self: Sized,
     {
         let mut number = String::new();
-        let start = value.position();
+        let start = value.pos();
 
         let mut num_value = value.clone();
         match num_value.next() {
             Some(chr) if chr.is_numeric() => {
-                let mut position = num_value.position();
+                let mut pos = num_value.pos();
                 number.push(chr);
 
                 num_value.set_whitespace(WhitespaceType::KeepAll);
@@ -452,23 +452,23 @@ impl Parse for Number {
                     match num_value.next() {
                         Some(value) if value.is_numeric() => {
                             number.push(value);
-                            position = num_value.position();
+                            pos = num_value.pos();
                         }
                         _ => break,
                     }
                 }
 
-                value.goto(position)?;
+                value.goto(pos)?;
             }
             _ => {
                 return Err(ParseError(
                     "Did not find number".to_string(),
-                    num_value.position(),
+                    num_value.pos(),
                 ))
             }
         }
 
-        let end = value.position();
+        let end = value.pos();
 
         Ok(Number {
             value: number,
@@ -505,12 +505,12 @@ where
 
         let mut indent_value = value.clone();
         indent_value.set_whitespace(WhitespaceType::Indent);
-        let mut position = indent_value.position();
+        let mut pos = indent_value.pos();
 
         let mut item = T::parse(&mut indent_value);
         let depth = indent_value.indent();
         while item.is_ok() {
-            position = indent_value.position();
+            pos = indent_value.pos();
             values.push(item?);
             item = T::parse(&mut indent_value);
 
@@ -519,10 +519,10 @@ where
             }
         }
 
-        if values.len() == 0 {
+        if values.is_empty() {
             Err(ParseError(
                 "Could not find Indent block.".to_string(),
-                position,
+                pos,
             ))
         } else {
             Ok(Self { values, depth })
@@ -596,10 +596,10 @@ where
             item = T::parse(value);
         }
 
-        if vec.len() == 0 {
+        if vec.is_empty() {
             Err(ParseError(
                 "Could not find vector.".to_string(),
-                value.position(),
+                value.pos(),
             ))
         } else {
             Ok(vec)
@@ -635,7 +635,7 @@ where
                     "Could not create slice from parsed values. \nvalues where: {:?}",
                     error
                 ),
-                value.position(),
+                value.pos(),
             )),
         }
     }
