@@ -1,7 +1,7 @@
 use parseal::{
-    Parsable,
-    language_formats::{Define, VariableData},
+    language_formats::{DefineList, VariableData},
     parsing::{self, Identifier, Parse},
+    Parsable,
 };
 
 #[derive(Debug, Clone, Parsable)]
@@ -11,14 +11,14 @@ pub struct Variable {
     name: Identifier,
 }
 
-impl Define<VariableData> for Variable {
-    fn name(&self) -> Identifier {
-        self.name.clone()
+impl DefineList<VariableData> for Variable {
+    fn names(&self) -> Vec<Identifier> {
+        todo!()
     }
 }
 
-impl Into<VariableData> for Variable {
-    fn into(self) -> VariableData {
+impl Into<Vec<VariableData>> for Variable {
+    fn into(self) -> Vec<VariableData> {
         todo!()
     }
 }

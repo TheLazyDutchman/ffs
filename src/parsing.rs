@@ -1,7 +1,7 @@
 pub mod charstream;
 pub mod tokens;
 
-use std::{collections::HashMap, fmt};
+use std::{collections::HashMap, fmt, vec::IntoIter};
 
 use self::{
     charstream::{CharStream, Position, Span, WhitespaceType},
@@ -127,6 +127,21 @@ where
     }
 }
 
+impl<
+    D: tokens::Delimiter,
+    T: Parse + IntoIterator<Item = I, IntoIter = Iter>,
+    I,
+    Iter: Iterator<Item = I>
+> IntoIterator for Group<D, T> {
+    type Item = I;
+
+    type IntoIter = Iter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.item.into_iter()
+    }
+}
+
 /// A List represents a collection of items, separated by a token.
 /// It has two generic types:
 /// - `I` is the type of item, it has to implement [`Parse`].
@@ -234,6 +249,16 @@ where
             .iter()
             .map(|(item, _)| item.clone().into())
             .collect()
+    }
+}
+
+impl<Item: Parse, S: tokens::Token> IntoIterator for List<Item, S> {
+    type Item = Item;
+    type IntoIter = IntoIter<Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        let list: Vec<_> = self.into();
+        list.into_iter()
     }
 }
 

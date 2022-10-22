@@ -1,7 +1,7 @@
 use parseal::{
-    Parsable,
     language_formats::{Define, FunctionData},
     parsing::{self, Identifier, Parse},
+    Parsable,
 };
 
 #[derive(Debug, Clone, Parsable)]

@@ -144,7 +144,7 @@ fn derive_enum(ident: &Ident, value: &DataEnum, generics: &Generics) -> TokenStr
                 let mut error = None;
                 let mut position = value.pos();
                 #(#parse_variants)*
-                options.sort_by(|a, b| a.span().partial_cmp(&b.span()).unwrap());
+                options.sort_by(|a, b| b.span().partial_cmp(&a.span()).unwrap());
                 match options.first() {
                     Some(option) => {
                         value.goto(position.clone())?;
