@@ -17,6 +17,7 @@ rand = "0.8.0"
 [features]
 derive = ["dep:parseal-derive"]
 data-formats = ["derive"]
+language-formats = ["derive"]
 
 [[example]]
 name = "html"
@@ -29,3 +30,7 @@ required-features = ["data-formats"]
 [[example]]
 name = "yaml"
 required-features = ["data-formats"]
+
+[[example]]
+name = "rust"
+required-features = ["language-formats"]
