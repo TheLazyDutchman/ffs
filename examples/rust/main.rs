@@ -1,24 +1,28 @@
 use std::fs;
 
 use parseal::{
-    language_formats::LanguageData,
-    parsing::{self, charstream::CharStream, Identifier, Parse},
+    language_formats::{LanguageData, Definition},
+    parsing::{self, charstream::CharStream, Parse},
     Parsable,
 };
 
 #[derive(Parsable, Debug, Clone)]
 pub struct Rust {
-    functions: Vec<Function>,
+    functions: Vec<Definition<Rust>>,
 }
 
-#[derive(Parsable, Debug, Clone)]
-pub struct Function {
-    #[value("fn")]
-    keyword: Identifier,
-}
+mod function;
+mod import;
+mod variable;
+
+use function::Function;
+use import::Import;
+use variable::Variable;
 
 impl LanguageData for Rust {
-    type FunctionData = Function;
+    type Function = Function;
+    type Import = Import;
+    type Variable = Variable;
 }
 
 pub fn main() {
