@@ -234,7 +234,11 @@ where
     S: tokens::Token + fmt::Debug,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "List({:#?}, from {})", self.items, self.span())
+        write!(f, "List({:#?}, from {})",
+            self.items.iter().map(|(item, _)| item)
+                .collect::<Vec<_>>(),
+            self.span()
+        )
     }
 }
 
