@@ -22,6 +22,10 @@ impl ParseError {
     pub fn new(cause: &str, pos: Position) -> Self {
         Self(cause.to_string(), pos)
     }
+
+    pub fn pos(&self) -> Position {
+        self.1.clone()
+    }
 }
 
 impl fmt::Debug for ParseError {
@@ -177,7 +181,8 @@ where
     I: Parse,
     S: tokens::Token,
 {
-    items: Vec<(I, Option<S>)>,
+    items: Vec<(I, S)>,
+    last_item: Option<I>,
     span: Span,
 }
 
@@ -192,22 +197,18 @@ where
     {
         let mut items = Vec::new();
         let start = value.pos();
+        let mut last_item = None;
 
         loop {
             let item = match I::parse(value) {
                 Ok(value) => value,
-                Err(error) => {
-                    if !items.is_empty() {
-                        return Err(error);
-                    }
-                    break;
-                }
+                _ => break,
             };
 
             let separator = match S::parse(value) {
-                Ok(value) => Some(value),
+                Ok(value) => value,
                 _ => {
-                    items.push((item, None));
+                    last_item = Some(item);
                     break;
                 }
             };
@@ -219,6 +220,7 @@ where
 
         Ok(Self {
             items,
+            last_item,
             span: Span::new(start, end),
         })
     }
@@ -234,9 +236,15 @@ where
     S: tokens::Token + fmt::Debug,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut items = self.items.iter().map(|(item, _)| item)
+                .collect::<Vec<_>>();
+        match &self.last_item {
+            Some(item) => items.push(item),
+            None => {}
+        }
+
         write!(f, "List({:#?}, from {})",
-            self.items.iter().map(|(item, _)| item)
-                .collect::<Vec<_>>(),
+            items,
             self.span()
         )
     }
@@ -381,7 +389,7 @@ impl Parse for Identifier {
 
         let mut ident_value = value.clone();
         match ident_value.next() {
-            Some(chr) if chr.is_alphabetic() => {
+            Some(chr) if chr.is_alphabetic() || chr == '_' => {
                 let mut pos = ident_value.pos();
                 identifier.push(chr);
 
@@ -389,7 +397,7 @@ impl Parse for Identifier {
 
                 loop {
                     match ident_value.next() {
-                        Some(value) if value.is_alphanumeric() => {
+                        Some(value) if value.is_alphanumeric() || value == '_' => {
                             identifier.push(value);
                             pos = ident_value.pos();
                         }
@@ -608,7 +616,7 @@ where
 
 impl<T> Parse for Vec<T>
 where
-    T: Parse,
+    T: Parse + fmt::Debug,
 {
     fn parse(value: &mut CharStream) -> Result<Self, ParseError>
     where
@@ -624,7 +632,7 @@ where
 
         if vec.is_empty() {
             Err(ParseError(
-                "Could not find vector.".to_string(),
+                format!("Could not find vector because: {:#?}", item.unwrap_err()),
                 value.pos(),
             ))
         } else {
@@ -704,5 +712,33 @@ where
 
     fn span(&self) -> Span {
         Span::new(self.0.span().start, self.2.span().end)
+    }
+}
+
+impl<T: Parse> Parse for Option<T> {
+    fn parse(value: &mut CharStream) -> Result<Self, ParseError> {
+        let mut __value = value.clone();
+        match T::parse(&mut __value) {
+            Ok(result) => {
+                value.goto(__value.pos())?;
+                Ok(Some(result))
+            }
+            Err(_) => Ok(None)
+        }
+    }
+
+    /// TODO deal with the None case, currently the outside caller has to check for it.
+    fn span(&self) -> Span {
+        self.clone().unwrap().span()
+    }
+}
+
+impl<T: Parse> Parse for Box<T> {
+    fn parse(value: &mut CharStream) -> Result<Self, ParseError> {
+        Ok(Box::new(T::parse(value)?))
+    }
+
+    fn span(&self) -> Span {
+        self.as_ref().span()
     }
 }

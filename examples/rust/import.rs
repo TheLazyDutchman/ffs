@@ -12,15 +12,13 @@ use super::DoubleColon;
 
 #[derive(Debug, Clone, Parsable)]
 pub enum ImportPart {
-    Name(Identifier),
-    List(Group<tokens::Brace, List<ImportPart, tokens::Comma>>),
-    Path(Identifier, DoubleColon, List<ImportPart, DoubleColon>),
+    List(Group<tokens::Brace, List<Box<ImportPart>, tokens::Comma>>),
+    Path(Identifier, Option<Box<(DoubleColon, ImportPart)>>),
 }
 
 impl ImportPart {
     pub fn names(&self) -> Vec<Identifier> {
         match self {
-            Self::Name(name) => vec![name.clone()],
             Self::List(group) => {
                 let mut list = Vec::new();
                 for part in group.clone() {
@@ -28,9 +26,11 @@ impl ImportPart {
                 }
                 list
             },
-            Self::Path(_, _, list) => {
-                let list: Vec<ImportPart> = list.clone().into();
-                list.last().unwrap().names()
+            Self::Path(_, Some(part)) => {
+                part.as_ref().1.names()
+            }
+            Self::Path(name, None) => {
+                vec![name.clone()]
             },
         }
     }

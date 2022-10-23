@@ -99,7 +99,12 @@ fn derive_enum(ident: &Ident, value: &DataEnum, generics: &Generics) -> TokenStr
                     position = __value.pos();
                     options.push(inner);
                 }
-                ::std::result::Result::Err(err) => error = ::std::option::Option::Some(err)
+                ::std::result::Result::Err(err) => match error {
+                    Some(__err) if err.pos() > __err.pos() =>
+                        error = ::std::option::Option::Some(err),
+                    Some(_) => {}
+                    None => error = ::std::option::Option::Some(err),
+                }
             }
         }
     });
@@ -141,7 +146,7 @@ fn derive_enum(ident: &Ident, value: &DataEnum, generics: &Generics) -> TokenStr
         impl #impl_generics Parse for #ident #type_generics #where_clause {
             fn parse(value: &mut parsing::charstream::CharStream) -> ::std::result::Result<Self, parsing::ParseError> {
                 let mut options = Vec::new();
-                let mut error = None;
+                let mut error: Option<parsing::ParseError> = None;
                 let mut position = value.pos();
                 #(#parse_variants)*
                 options.sort_by(|a, b| b.span().partial_cmp(&a.span()).unwrap());
@@ -243,8 +248,12 @@ fn derive_fields(fields: Vec<&Field>) -> Vec<quote::__private::TokenStream> {
                 let mut values = attr.nested.iter().map(|meta| quote! {
                     ::std::result::Result::Ok(inner) if inner == #meta => inner
                 }).collect::<Vec<_>>();
+
+                let expected = attr.nested.iter().map(|meta| quote! {
+                    #meta
+                }).collect::<Vec<_>>();
                 values.push(quote! {
-                    ::std::result::Result::Ok(inner) => return ::std::result::Result::Err(parsing::ParseError::new("Value was not one of the expected values.", value.pos()))
+                    ::std::result::Result::Ok(inner) => return ::std::result::Result::Err(parsing::ParseError::new(&format!("Value was not one of the expected values. expected one of: {}", stringify!([#(#expected),*])), value.pos()))
                 });
                 values.push(quote! {
                     ::std::result::Result::Err(error) => return ::std::result::Result::Err(error)
