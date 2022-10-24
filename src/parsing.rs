@@ -176,7 +176,7 @@ impl<
 /// # }
 /// ```
 #[derive(Clone)]
-pub struct List<I, S>
+pub struct List<I, S = tokens::Comma>
 where
     I: Parse,
     S: tokens::Token,

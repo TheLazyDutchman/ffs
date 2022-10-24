@@ -1,27 +1,10 @@
-use std::{fs, fmt::{self, Formatter}};
+use std::fs;
 
 use parseal::{
     language_formats::{Definition, LanguageData},
-    parsing::{self, tokens, charstream::CharStream, Parse},
+    parsing::{self, charstream::CharStream, Parse},
     Parsable,
 };
-
-#[derive(Parsable, Clone)]
-pub struct DoubleColon([tokens::Colon; 2]);
-
-impl tokens::Token for DoubleColon {}
-
-impl fmt::Display for DoubleColon {
-    fn fmt(&self, f: &mut Formatter) -> Result<(), fmt::Error> {
-        write!(f, "::")
-    }
-}
-
-impl fmt::Debug for DoubleColon {
-    fn fmt(&self, f: &mut Formatter) -> Result<(), fmt::Error> {
-        write!(f, "Token(::, from {})", self.span())
-    }
-}
 
 #[derive(Parsable, Debug, Clone)]
 pub struct Rust {
@@ -31,15 +14,20 @@ pub struct Rust {
 mod function;
 mod import;
 mod variable;
+mod type_object;
+mod attribute;
+mod publicity;
 
 use function::Function;
 use import::Import;
 use variable::Variable;
+use type_object::Type;
 
 impl LanguageData for Rust {
     type Function = Function;
     type Import = Import;
     type Variable = Variable;
+    type Type = Type;
 }
 
 pub fn main() {

@@ -192,11 +192,14 @@ create_tokens! {
     = Equal,
     == EqualEqual,
     : Colon,
+    :: DoubleColon,
     ; Semicolon,
     | Pipe,
     < Less,
     > Greater,
-    / ForwardSlash
+    / ForwardSlash,
+    -> RightArrow,
+    => FatArrow
 }
 
 create_delimiters! {

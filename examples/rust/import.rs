@@ -8,12 +8,10 @@ use parseal::{
     Parsable,
 };
 
-use super::DoubleColon;
-
 #[derive(Debug, Clone, Parsable)]
 pub enum ImportPart {
     List(Group<tokens::Brace, List<Box<ImportPart>, tokens::Comma>>),
-    Path(Identifier, Option<Box<(DoubleColon, ImportPart)>>),
+    Path(Identifier, Option<Box<(tokens::DoubleColon, ImportPart)>>),
 }
 
 impl ImportPart {
