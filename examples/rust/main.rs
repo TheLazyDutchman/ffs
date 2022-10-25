@@ -1,26 +1,19 @@
+#![allow(unused)]
+
 use std::fs;
 
 use parseal::{
     Parsable,
     parsing::{self, Parse, charstream::CharStream, tokens, Group, List, Identifier, StringValue},
 };
+use typedata::{NamedField, Enum, Struct};
+
+mod typedata;
 
 #[derive(Debug, Clone, Parsable)]
 pub enum UsePart {
     Group(Group<tokens::Brace, List<Box<UsePart>>>),
     Path(Identifier, Option<(tokens::DoubleColon, Box<UsePart>)>),
-}
-
-#[derive(Parsable, Clone, Debug)]
-pub struct TypePathReference {
-    path: List<Identifier, tokens::DoubleColon>,
-    generics: Option<Group<tokens::Chevron, List<Box<TypeReference>>>>,
-}
-
-#[derive(Parsable, Clone, Debug)]
-pub enum TypeReference {
-    Path(TypePathReference),
-    Tuple(Group<tokens::Paren, List<Box<TypeReference>>>),
 }
 
 #[derive(Parsable, Clone, Debug)]
@@ -32,6 +25,7 @@ pub enum AttrValue {
 #[derive(Parsable, Clone, Debug)]
 pub struct Attribute {
     start: tokens::Hash,
+    outer: Option<tokens::Bang>,
     value: Group<tokens::Bracket, (Identifier, Group<tokens::Paren, List<AttrValue>>)>
 }
 
@@ -42,59 +36,27 @@ pub enum Visibility {
 }
 
 #[derive(Parsable, Clone, Debug)]
-pub enum Variant {
-    Tuple(Identifier, Group<tokens::Paren, List<UnnamedField>>),
-    Unit(Identifier),
-}
-
-#[derive(Parsable, Clone, Debug)]
-pub struct Enum {
+pub struct Function {
     attrs: Option<Vec<Attribute>>,
     vis: Visibility,
-    #[value("enum")]
+    #[value("fn")]
     keyword: Identifier,
     name: Identifier,
-    variants: Group<tokens::Brace, List<Variant>>,
-}
-
-#[derive(Parsable, Clone, Debug)]
-pub struct UnnamedField {
-    attrs: Option<Vec<Attribute>>,
-    ty: TypeReference
-}
-
-#[derive(Parsable, Clone, Debug)]
-pub struct NamedField {
-    attrs: Option<Vec<Attribute>>,
-    name: Identifier,
-    colon: tokens::Colon,
-    ty: TypeReference
-}
-
-#[derive(Parsable, Clone, Debug)]
-pub enum StructData {
-    Named(Group<tokens::Brace, List<NamedField>>),
-}
-
-#[derive(Parsable, Clone, Debug)]
-pub struct Struct {
-    attrs: Option<Vec<Attribute>>,
-    vis: Visibility,
-    #[value("struct")]
-    keyword: Identifier,
-    name: Identifier,
-    data: StructData,
+    parameters: Group<tokens::Paren, List<NamedField>>,
 }
 
 #[derive(Parsable, Clone, Debug)]
 pub enum Definition {
     Use(#[value("use")] Identifier, UsePart, tokens::Semicolon),
+    Mod(#[value("mod")] Identifier, Identifier, tokens::Semicolon),
     Enum(Enum),
     Struct(Struct),
+    Function(Function),
 }
 
 #[derive(Parsable, Clone, Debug)]
 pub struct Rust {
+    attrs: Option<Vec<Attribute>>,
     definitions: Vec<Definition>
 }
 
