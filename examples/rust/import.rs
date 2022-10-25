@@ -9,12 +9,12 @@ use parseal::{
 };
 
 #[derive(Debug, Clone, Parsable)]
-pub enum ImportPart {
-    List(Group<tokens::Brace, List<Box<ImportPart>, tokens::Comma>>),
-    Path(Identifier, Option<Box<(tokens::DoubleColon, ImportPart)>>),
+pub enum UsePart {
+    List(Group<tokens::Brace, List<Box<UsePart>, tokens::Comma>>),
+    Path(Identifier, Option<Box<(tokens::DoubleColon, UsePart)>>),
 }
 
-impl ImportPart {
+impl UsePart {
     pub fn names(&self) -> Vec<Identifier> {
         match self {
             Self::List(group) => {
@@ -35,16 +35,25 @@ impl ImportPart {
 }
 
 #[derive(Debug, Clone, Parsable)]
-pub struct Import {
+pub struct Use {
     #[value("use")]
     keyword: Identifier,
-    part: ImportPart,
+    part: UsePart,
     end: tokens::Semicolon,
+}
+
+#[derive(Debug, Clone, Parsable)]
+pub enum Import {
+    Use(Use),
+    Mod(#[value("mod")] Identifier, Identifier, tokens::Semicolon),
 }
 
 impl DefineList<ImportData> for Import {
     fn names(&self) -> Vec<Identifier> {
-        self.part.names()
+        match self {
+            Self::Use(value) => value.part.names(),
+            Self::Mod(_, name, _) => vec![name.clone()],
+        }
     }
 }
 

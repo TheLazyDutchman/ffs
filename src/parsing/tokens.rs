@@ -15,6 +15,29 @@ pub trait Delimiter: Clone {
     fn name() -> String;
 }
 
+#[derive(Clone)]
+pub struct Chevron {
+    start: Less,
+    end: Greater,
+}
+
+impl Delimiter for Chevron {
+    type Start = Less;
+    type End = Greater;
+
+    fn new(start: Less, end: Greater) -> Self {
+        Self { start, end }
+    }
+
+    fn span(&self) -> super::Span {
+        super::Span::new(self.start.span().start, self.end.span().end)
+    }
+
+    fn name() -> String {
+        "<>".to_string()
+    }
+}
+
 macro_rules! create_tokens {
     ($($token:tt $id:ident),+) => {
         $(
