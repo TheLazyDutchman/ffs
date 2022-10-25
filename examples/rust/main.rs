@@ -2,7 +2,7 @@ use std::fs;
 
 use parseal::{
     Parsable,
-    parsing::{self, Parse, charstream::CharStream, tokens, Group, List, Identifier},
+    parsing::{self, Parse, charstream::CharStream, tokens, Group, List, Identifier, StringValue},
 };
 
 #[derive(Debug, Clone, Parsable)]
@@ -24,9 +24,15 @@ pub enum TypeReference {
 }
 
 #[derive(Parsable, Clone, Debug)]
+pub enum AttrValue {
+    Ident(Identifier),
+    String(StringValue),
+}
+
+#[derive(Parsable, Clone, Debug)]
 pub struct Attribute {
     start: tokens::Hash,
-    value: Group<tokens::Bracket, (Identifier, Group<tokens::Paren, List<Identifier>>)>
+    value: Group<tokens::Bracket, (Identifier, Group<tokens::Paren, List<AttrValue>>)>
 }
 
 #[derive(Parsable, Clone, Debug)]
@@ -37,7 +43,8 @@ pub enum Visibility {
 
 #[derive(Parsable, Clone, Debug)]
 pub enum Variant {
-    Tuple(Identifier, Group<tokens::Paren, List<TypeReference>>),
+    Tuple(Identifier, Group<tokens::Paren, List<UnnamedField>>),
+    Unit(Identifier),
 }
 
 #[derive(Parsable, Clone, Debug)]
@@ -51,9 +58,39 @@ pub struct Enum {
 }
 
 #[derive(Parsable, Clone, Debug)]
+pub struct UnnamedField {
+    attrs: Option<Vec<Attribute>>,
+    ty: TypeReference
+}
+
+#[derive(Parsable, Clone, Debug)]
+pub struct NamedField {
+    attrs: Option<Vec<Attribute>>,
+    name: Identifier,
+    colon: tokens::Colon,
+    ty: TypeReference
+}
+
+#[derive(Parsable, Clone, Debug)]
+pub enum StructData {
+    Named(Group<tokens::Brace, List<NamedField>>),
+}
+
+#[derive(Parsable, Clone, Debug)]
+pub struct Struct {
+    attrs: Option<Vec<Attribute>>,
+    vis: Visibility,
+    #[value("struct")]
+    keyword: Identifier,
+    name: Identifier,
+    data: StructData,
+}
+
+#[derive(Parsable, Clone, Debug)]
 pub enum Definition {
     Use(#[value("use")] Identifier, UsePart, tokens::Semicolon),
     Enum(Enum),
+    Struct(Struct),
 }
 
 #[derive(Parsable, Clone, Debug)]
