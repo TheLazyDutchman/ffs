@@ -12,6 +12,18 @@ pub enum UsePart {
 }
 
 #[derive(Parsable, Clone, Debug)]
+pub struct TypePathReference {
+    path: List<Identifier, tokens::DoubleColon>,
+    generics: Option<Group<tokens::Chevron, List<Box<TypeReference>>>>,
+}
+
+#[derive(Parsable, Clone, Debug)]
+pub enum TypeReference {
+    Path(TypePathReference),
+    Tuple(Group<tokens::Paren, List<Box<TypeReference>>>),
+}
+
+#[derive(Parsable, Clone, Debug)]
 pub struct Attribute {
     start: tokens::Hash,
     value: Group<tokens::Bracket, (Identifier, Group<tokens::Paren, List<Identifier>>)>
@@ -24,11 +36,18 @@ pub enum Visibility {
 }
 
 #[derive(Parsable, Clone, Debug)]
+pub enum Variant {
+    Tuple(Identifier, Group<tokens::Paren, List<TypeReference>>),
+}
+
+#[derive(Parsable, Clone, Debug)]
 pub struct Enum {
-    attrs: Vec<Attribute>,
+    attrs: Option<Vec<Attribute>>,
     vis: Visibility,
     #[value("enum")]
     keyword: Identifier,
+    name: Identifier,
+    variants: Group<tokens::Brace, List<Variant>>,
 }
 
 #[derive(Parsable, Clone, Debug)]

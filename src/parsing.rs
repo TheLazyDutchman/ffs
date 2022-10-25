@@ -641,14 +641,10 @@ where
     }
 
     fn span(&self) -> Span {
-        if self.is_empty() {
-            Span::default()
-        } else {
-            Span::new(
-                self.first().unwrap().span().start,        
-                self.last().unwrap().span().start,
-            )
-        }
+        Span::new(
+            self.first().unwrap().span().start,        
+            self.last().unwrap().span().start,
+        )
     }
 }
 
