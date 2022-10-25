@@ -96,7 +96,10 @@ fn derive_enum(ident: &Ident, value: &DataEnum, generics: &Generics) -> TokenStr
             let mut __value = value.clone();
             match Self::#func_ident(&mut __value) {
                 ::std::result::Result::Ok(inner) => {
-                    position = __value.pos();
+                    let __position = __value.pos();
+                    if __position > position {
+                        position = __value.pos();
+                    }
                     options.push(inner);
                 }
                 ::std::result::Result::Err(err) => match error {
@@ -127,12 +130,18 @@ fn derive_enum(ident: &Ident, value: &DataEnum, generics: &Generics) -> TokenStr
                 }
             });
 
-        let first = inner_ident(&fields.first().unwrap().ident, 0);
-        let last = inner_ident(&fields.last().unwrap().ident, fields.len() - 1);
-
-        quote! {
-            Self::#variant_ident(#(#definitions),*) =>
+        if fields.is_empty() {
+            quote! {
+                Self::#variant_ident => parsing::charstream::Span::default(),
+            }
+        } else {
+            let first = inner_ident(&fields.first().unwrap().ident, 0);
+            let last = inner_ident(&fields.last().unwrap().ident, fields.len() - 1);
+            
+            quote! {
+                Self::#variant_ident(#(#definitions),*) =>
                 parsing::charstream::Span::new(#first.span().start, #last.span().end),
+            }    
         }
     });
 
@@ -198,14 +207,8 @@ fn derive_variant_function(
                 ::std::result::Result::Ok(Self::#field_ident(#(#inner_fields),*))
             }
         }
-        Fields::Unit => {
-            return Err(TokenStream::from(
-                Error::new(
-                    field_ident.span(),
-                    "Can not derive trait Parse for a unit variant.",
-                )
-                .to_compile_error(),
-            ))
+        Fields::Unit => quote! {
+            ::std::result::Result::Ok(Self::#field_ident)
         }
     };
     Ok(quote! {

@@ -39,17 +39,24 @@ impl Position {
 
 impl PartialOrd for Position {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        if other == &Position::default() {
+            return Some(std::cmp::Ordering::Greater);
+        }
+        if self == &Position::default() {
+            return Some(std::cmp::Ordering::Less);
+        }
+
         match self.file.partial_cmp(&other.file) {
-            Some(core::cmp::Ordering::Equal) => {}
+            Some(std::cmp::Ordering::Equal) => {}
             _ => return None,
         }
         match self.file_id.partial_cmp(&other.file_id) {
-            Some(core::cmp::Ordering::Equal) => {}
+            Some(std::cmp::Ordering::Equal) => {}
             _ => return None,
         }
 
         match self.row.partial_cmp(&other.row) {
-            Some(core::cmp::Ordering::Equal) => {}
+            Some(std::cmp::Ordering::Equal) => {}
             ord => return ord,
         }
         self.index.partial_cmp(&other.index)
@@ -79,6 +86,13 @@ impl Span {
 
 impl PartialOrd for Span {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        if other == &Span::default() {
+            return Some(std::cmp::Ordering::Greater)
+        }
+        if self == &Span::default() {
+            return Some(std::cmp::Ordering::Less)
+        }
+
         match self.start.partial_cmp(&other.start) {
             Some(std::cmp::Ordering::Less) => match self.end.partial_cmp(&other.end) {
                 Some(std::cmp::Ordering::Less) | None => None,

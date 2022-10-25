@@ -25,7 +25,7 @@ pub enum Visibility {
 
 #[derive(Parsable, Clone, Debug)]
 pub struct Enum {
-    attrs: Option<Vec<Attribute>>,
+    attrs: Vec<Attribute>,
     vis: Visibility,
     #[value("enum")]
     keyword: Identifier,
@@ -47,5 +47,5 @@ pub fn main() {
         .expect("could not find file.");
     let mut buffer = CharStream::new(file).build();
     let value = Rust::parse(&mut buffer);
-    println!("value: {:?}", value);
+    println!("value: {:#?}", value);
 }
