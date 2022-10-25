@@ -729,7 +729,7 @@ impl<T: Parse> Parse for Option<T> {
 
     /// TODO deal with the None case, currently the outside caller has to check for it.
     fn span(&self) -> Span {
-        self.clone().unwrap().span()
+        Span::default()
     }
 }
 

@@ -3,7 +3,7 @@ use std::{fmt, vec::IntoIter};
 
 use super::ParseError;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub struct Position {
     pub column: usize,
     pub row: usize,
@@ -65,7 +65,7 @@ impl fmt::Display for Position {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Span {
     pub start: Position,
     pub end: Position,
