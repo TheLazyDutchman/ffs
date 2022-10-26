@@ -2,6 +2,7 @@
 
 use std::fs;
 
+use expression::Statement;
 use parseal::{
     Parsable,
     parsing::{self, Parse, charstream::CharStream, tokens, Group, List, Identifier, StringValue},
@@ -9,6 +10,7 @@ use parseal::{
 use typedata::{NamedField, Enum, Struct};
 
 mod typedata;
+mod expression;
 
 #[derive(Debug, Clone, Parsable)]
 pub enum UsePart {
@@ -43,6 +45,7 @@ pub struct Function {
     keyword: Identifier,
     name: Identifier,
     parameters: Group<tokens::Paren, List<NamedField>>,
+    code: Group<tokens::Brace, Option<Vec<Statement>>>,
 }
 
 #[derive(Parsable, Clone, Debug)]
