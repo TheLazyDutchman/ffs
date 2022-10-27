@@ -1,6 +1,9 @@
-use parseal::{Parsable, parsing::{self, Parse, Identifier, Group, tokens, List}};
+use parseal::{
+    parsing::{self, tokens, Group, Identifier, List, Parse},
+    Parsable,
+};
 
-use crate::{Visibility, Attribute};
+use crate::{Attribute, Visibility};
 
 #[derive(Parsable, Clone, Debug)]
 pub struct TypePathReference {
@@ -33,7 +36,7 @@ pub struct Enum {
 #[derive(Parsable, Clone, Debug)]
 pub struct UnnamedField {
     attrs: Option<Vec<Attribute>>,
-    ty: TypeValue
+    ty: TypeValue,
 }
 
 #[derive(Parsable, Clone, Debug)]
@@ -41,7 +44,7 @@ pub struct NamedField {
     attrs: Option<Vec<Attribute>>,
     name: Identifier,
     colon: tokens::Colon,
-    ty: TypeValue
+    ty: TypeValue,
 }
 
 #[derive(Parsable, Clone, Debug)]
@@ -50,11 +53,11 @@ pub enum StructData {
 }
 
 impl StructData {
-	fn fields(&self) -> Vec<NamedField> {
-		match self {
-			Self::Named(group) => group.clone().into()
-		}
-	}
+    fn fields(&self) -> Vec<NamedField> {
+        match self {
+            Self::Named(group) => group.clone().into(),
+        }
+    }
 }
 
 #[derive(Parsable, Clone, Debug)]

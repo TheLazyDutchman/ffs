@@ -2,7 +2,7 @@ use std::fs;
 
 use parseal::{
     data_formats::{NamedValue, Node, ParseNode, TreeData},
-    parsing::{self, charstream::CharStream, tokens, Identifier, Indent, Parse},
+    parsing::{self, bufferstream::BufferStream, tokens, Identifier, Indent, Parse},
     Parsable,
 };
 
@@ -41,9 +41,8 @@ pub struct YAML {
 
 pub fn main() {
     let file = fs::read_to_string("examples/yaml/example.yaml").unwrap();
-
-    let mut charstream = CharStream::new(file).build();
-    let value = YAML::parse(&mut charstream).unwrap();
+    let mut buffer: BufferStream = file.into();
+    let value = YAML::parse(&mut buffer).unwrap();
 
     println!("value: {:#?}", value);
     let node: Node = value.value.into();

@@ -6,7 +6,7 @@ use parseal::{
     data_formats::{NamedValue, Node, ParseNode, TreeData},
     parsing::{
         self,
-        charstream::CharStream,
+        bufferstream::BufferStream,
         tokens::{Brace, Bracket, Colon, Comma},
         Group, Identifier, List, Number, Parse, StringValue,
     },
@@ -32,7 +32,7 @@ fn main() {
     let file =
         fs::read_to_string("examples/json/example.json").expect("Expected example file to exist.");
 
-    let mut buffer = CharStream::new(file).build();
+    let mut buffer: BufferStream = file.into();
     let value = JSON::parse(&mut buffer).unwrap();
 
     let node: Node = value.clone().into();

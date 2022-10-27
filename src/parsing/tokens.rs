@@ -1,6 +1,9 @@
 use std::fmt;
 
-use super::{charstream::CharStream, Parse, ParseError};
+use super::{
+    tokenstream::{self, TokenStream, TokenType},
+    Parse, ParseError,
+};
 
 pub trait Token: Parse + fmt::Display {}
 
@@ -49,28 +52,18 @@ macro_rules! create_tokens {
             impl Token for $id {}
 
             impl Parse for $id {
-                fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
-                    let token = stringify!($token);
-                    let len = token.len();
-                    let start = value.pos();
-
-                    let mut token_value = value.clone();
-
-                    let mut mtch = String::new();
-                    while mtch.len() < len {
-                        mtch.push(match token_value.next() {
-                            Some(value) => value,
-                            None => break
-                        });
+                fn parse<T: TokenStream>(value: &mut T) -> Result<Self, ParseError> where Self: Sized {
+                    let string = stringify!($token);
+                    match value.next() {
+                        Some(tokenstream::Token {
+                            value,
+                            span,
+                            tokentype: TokenType::Token
+                        }) if value == string => {
+                            Ok(Self { span })
+                        }
+                        token => Err(ParseError::new(&format!("Expected token '{}', got {:?}", string, token), value.pos()))
                     }
-
-                    if (token == mtch) {
-                        value.goto(token_value.pos())?;
-                        let end = value.pos();
-                        return Ok(Self { span: super::Span::new(start, end)});
-                    }
-
-                    Err(ParseError(format!("Could not find token '{}'.", stringify!($token)), token_value.pos()))
                 }
 
                 fn span(&self) -> super::Span {
@@ -80,7 +73,7 @@ macro_rules! create_tokens {
 
             impl fmt::Debug for $id {
                 fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result{
-                    write!(f, "Token({}, at: {})", stringify!($token), self.span.end)
+                    write!(f, "Token({}, at: {:?})", stringify!($token), self.span.end)
                 }
             }
 
@@ -104,20 +97,14 @@ macro_rules! create_delimiters {
             impl Token for $left {}
 
             impl Parse for $left {
-                fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
+                fn parse<T: TokenStream>(value: &mut T) -> Result<Self, ParseError> where Self: Sized {
                     let chr = stringify!($token).chars().nth(0).unwrap();
-                    let mut token_value = value.clone();
-                    let start = value.pos();
-
-                    if let Some(token) = token_value.next() {
-                        if token == chr {
-                            value.goto(token_value.pos())?;
-                            let end = value.pos();
-                            return Ok(Self { span: super::Span::new(start, end)})
-                        }
+                    match value.next() {
+                        Some(tokenstream::Token {
+                            value, span, tokentype: TokenType::Token
+                        }) if value.chars().next().unwrap() == chr => Ok(Self { span }),
+                        token => Err(ParseError(format!("Expected left side of: '{}', got '{:?}'.", stringify!($token), token), value.pos()))
                     }
-
-                    Err(ParseError(format!("could not find left side of: '{}'.", stringify!($token)), value.pos()))
                 }
 
                 fn span(&self) -> super::Span {
@@ -145,20 +132,14 @@ macro_rules! create_delimiters {
             impl Token for $right {}
 
             impl Parse for $right {
-                fn parse(value: &mut CharStream) -> Result<Self, ParseError> where Self: Sized {
+                fn parse<T: TokenStream>(value: &mut T) -> Result<Self, ParseError> where Self: Sized {
                     let chr = stringify!($token).chars().nth(1).unwrap();
-                    let mut token_value = value.clone();
-                    let start = value.pos();
-
-                    if let Some(token) = token_value.next() {
-                        if token == chr {
-                            value.goto(token_value.pos())?;
-                            let end = value.pos();
-                            return Ok(Self { span: super::Span::new(start, end)})
-                        }
+                    match value.next() {
+                        Some(tokenstream::Token {
+                            value, span, tokentype: TokenType::Token
+                        }) if value.chars().next().unwrap() == chr => Ok(Self { span }),
+                        token => Err(ParseError(format!("Expected right side of: '{}', got '{:?}'.", stringify!($token), token), value.pos()))
                     }
-
-                    Err(ParseError(format!("could not find right side of: '{}'.", stringify!($token)), value.pos()))
                 }
 
                 fn span(&self) -> super::Span {

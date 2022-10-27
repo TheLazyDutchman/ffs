@@ -1,18 +1,13 @@
-pub mod charstream;
+pub mod bufferstream;
 pub mod tokens;
 pub mod tokenstream;
-pub mod bufferstream;
-pub mod filestream;
 
 use std::{collections::HashMap, fmt, vec::IntoIter};
 
-use self::{
-    charstream::{CharStream, Position, Span, WhitespaceType},
-    tokens::Delimiter,
-};
+use self::tokenstream::{Position, Span, Token, TokenStream, TokenType, WhitespaceType};
 
 pub trait Parse: Clone {
-    fn parse(value: &mut CharStream) -> Result<Self, ParseError>
+    fn parse<T: TokenStream>(value: &mut T) -> Result<Self, ParseError>
     where
         Self: Sized;
     fn span(&self) -> Span;
@@ -33,7 +28,7 @@ impl ParseError {
 
 impl fmt::Debug for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:{}:Error: '{}'", self.1.row, self.1.column, self.0)
+        write!(f, "{:?}:Error: '{}'", self.1, self.0)
     }
 }
 
@@ -72,7 +67,7 @@ where
     D: tokens::Delimiter,
     I: Parse,
 {
-    fn parse(value: &mut CharStream) -> Result<Self, ParseError>
+    fn parse<T: TokenStream>(value: &mut T) -> Result<Self, ParseError>
     where
         Self: Sized,
     {
@@ -101,7 +96,7 @@ where
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "Group({:#?}, delim: {}, from {})",
+            "Group({:#?}, delim: {}, from {:?})",
             self.item,
             D::name(),
             self.span()
@@ -135,11 +130,12 @@ where
 }
 
 impl<
-    D: tokens::Delimiter,
-    T: Parse + IntoIterator<Item = I, IntoIter = Iter>,
-    I,
-    Iter: Iterator<Item = I>
-> IntoIterator for Group<D, T> {
+        D: tokens::Delimiter,
+        T: Parse + IntoIterator<Item = I, IntoIter = Iter>,
+        I,
+        Iter: Iterator<Item = I>,
+    > IntoIterator for Group<D, T>
+{
     type Item = I;
 
     type IntoIter = Iter;
@@ -194,7 +190,7 @@ where
     I: Parse,
     S: tokens::Token,
 {
-    fn parse(value: &mut CharStream) -> Result<Self, ParseError>
+    fn parse<T: TokenStream>(value: &mut T) -> Result<Self, ParseError>
     where
         Self: Sized,
     {
@@ -239,17 +235,13 @@ where
     S: tokens::Token + fmt::Debug,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut items = self.items.iter().map(|(item, _)| item)
-                .collect::<Vec<_>>();
+        let mut items = self.items.iter().map(|(item, _)| item).collect::<Vec<_>>();
         match &self.last_item {
             Some(item) => items.push(item),
             None => {}
         }
 
-        write!(f, "List({:#?}, from {})",
-            items,
-            self.span()
-        )
+        write!(f, "List({:#?}, from {:?})", items, self.span())
     }
 }
 
@@ -290,8 +282,8 @@ impl<Item: Parse, S: tokens::Token> IntoIterator for List<Item, S> {
 /// ```
 #[derive(Clone)]
 pub struct StringValue {
-    delim: tokens::Quote,
     value: String,
+    span: Span,
 }
 
 impl From<StringValue> for String {
@@ -301,46 +293,31 @@ impl From<StringValue> for String {
 }
 
 impl Parse for StringValue {
-    fn parse(value: &mut CharStream) -> Result<Self, ParseError>
+    fn parse<T: TokenStream>(value: &mut T) -> Result<Self, ParseError>
     where
         Self: Sized,
     {
-        let left = <tokens::Quote as tokens::Delimiter>::Start::parse(value)?;
-        let mut inner_value = String::new();
-
-        let mut string_value = value.clone();
-
-        let mut pos = string_value.pos();
-
-        string_value.set_whitespace(WhitespaceType::KeepAll);
-        loop {
-            match string_value.next() {
-                Some(value) if value != '"' => {
-                    inner_value.push(value);
-                    pos = string_value.pos();
-                }
-                _ => break,
-            }
+        match value.next() {
+            Some(Token {
+                value,
+                span,
+                tokentype: TokenType::String,
+            }) => Ok(StringValue { value, span }),
+            token => Err(ParseError::new(
+                &format!("Expected string literal, got {:?}", token),
+                value.pos(),
+            )),
         }
-
-        value.goto(pos)?;
-
-        let right = <tokens::Quote as tokens::Delimiter>::End::parse(value)?;
-
-        Ok(Self {
-            delim: tokens::Delimiter::new(left, right),
-            value: inner_value,
-        })
     }
 
     fn span(&self) -> Span {
-        self.delim.span()
+        self.span.clone()
     }
 }
 
 impl fmt::Debug for StringValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "StringValue({}, from {})", self.value, self.span())
+        write!(f, "StringValue({}, from {:?})", self.value, self.span())
     }
 }
 
@@ -383,47 +360,21 @@ impl Identifier {
 }
 
 impl Parse for Identifier {
-    fn parse(value: &mut CharStream) -> Result<Self, ParseError>
+    fn parse<T: TokenStream>(value: &mut T) -> Result<Self, ParseError>
     where
         Self: Sized,
     {
-        let mut identifier = String::new();
-        let start = value.pos();
-
-        let mut ident_value = value.clone();
-        match ident_value.next() {
-            Some(chr) if chr.is_alphabetic() || chr == '_' => {
-                let mut pos = ident_value.pos();
-                identifier.push(chr);
-
-                ident_value.set_whitespace(WhitespaceType::KeepAll);
-
-                loop {
-                    match ident_value.next() {
-                        Some(value) if value.is_alphanumeric() || value == '_' => {
-                            identifier.push(value);
-                            pos = ident_value.pos();
-                        }
-                        _ => break,
-                    }
-                }
-
-                value.goto(pos)?;
-            }
-            _ => {
-                return Err(ParseError(
-                    "Did not find identifier".to_string(),
-                    ident_value.pos(),
-                ))
-            }
+        match value.next() {
+            Some(Token {
+                value: identifier,
+                span,
+                tokentype: TokenType::Identifier,
+            }) => Ok(Identifier { identifier, span }),
+            token => Err(ParseError::new(
+                &format!("Expected identifier, got {:?}", token),
+                value.pos(),
+            )),
         }
-
-        let end = value.pos();
-
-        Ok(Self {
-            identifier,
-            span: Span::new(start, end),
-        })
     }
 
     fn span(&self) -> Span {
@@ -439,7 +390,7 @@ impl From<Identifier> for String {
 
 impl fmt::Debug for Identifier {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Identifier({}, from {})", self.identifier, self.span)
+        write!(f, "Identifier({}, from {:?})", self.identifier, self.span)
     }
 }
 
@@ -473,47 +424,21 @@ impl From<Number> for usize {
 }
 
 impl Parse for Number {
-    fn parse(value: &mut CharStream) -> Result<Self, ParseError>
+    fn parse<T: TokenStream>(value: &mut T) -> Result<Self, ParseError>
     where
         Self: Sized,
     {
-        let mut number = String::new();
-        let start = value.pos();
-
-        let mut num_value = value.clone();
-        match num_value.next() {
-            Some(chr) if chr.is_numeric() => {
-                let mut pos = num_value.pos();
-                number.push(chr);
-
-                num_value.set_whitespace(WhitespaceType::KeepAll);
-
-                loop {
-                    match num_value.next() {
-                        Some(value) if value.is_numeric() => {
-                            number.push(value);
-                            pos = num_value.pos();
-                        }
-                        _ => break,
-                    }
-                }
-
-                value.goto(pos)?;
-            }
-            _ => {
-                return Err(ParseError(
-                    "Did not find number".to_string(),
-                    num_value.pos(),
-                ))
-            }
+        match value.next() {
+            Some(Token {
+                value,
+                span,
+                tokentype: TokenType::Identifier,
+            }) => Ok(Number { value, span }),
+            token => Err(ParseError::new(
+                &format!("Expected number literal, got {:?}", token),
+                value.pos(),
+            )),
         }
-
-        let end = value.pos();
-
-        Ok(Number {
-            value: number,
-            span: Span::new(start, end),
-        })
     }
 
     fn span(&self) -> Span {
@@ -523,28 +448,28 @@ impl Parse for Number {
 
 impl fmt::Debug for Number {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Number({}, from {})", self.value, self.span)
+        write!(f, "Number({}, from {:?})", self.value, self.span)
     }
 }
 
 #[derive(Clone)]
 pub struct Indent<T> {
     values: Vec<T>,
-    depth: u8,
+    depth: usize,
 }
 
 impl<T: fmt::Debug> Parse for Indent<T>
 where
     T: Parse,
 {
-    fn parse(value: &mut CharStream) -> Result<Self, ParseError>
+    fn parse<S: TokenStream>(value: &mut S) -> Result<Self, ParseError>
     where
         Self: Sized,
     {
         let mut values = Vec::new();
 
         let mut indent_value = value.clone();
-        indent_value.set_whitespace(WhitespaceType::Indent);
+        indent_value.set_whitespace(WhitespaceType::Ignore);
         let mut pos = indent_value.pos();
 
         let mut item = T::parse(&mut indent_value);
@@ -581,7 +506,7 @@ where
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Indent({:#?}, from {}, depth {})",
+            "Indent({:#?}, from {:?}, depth {})",
             self.values,
             self.span(),
             self.depth
@@ -621,7 +546,7 @@ impl<T> Parse for Vec<T>
 where
     T: Parse + fmt::Debug,
 {
-    fn parse(value: &mut CharStream) -> Result<Self, ParseError>
+    fn parse<S: TokenStream>(value: &mut S) -> Result<Self, ParseError>
     where
         Self: Sized,
     {
@@ -645,7 +570,7 @@ where
 
     fn span(&self) -> Span {
         Span::new(
-            self.first().unwrap().span().start,        
+            self.first().unwrap().span().start,
             self.last().unwrap().span().start,
         )
     }
@@ -655,7 +580,7 @@ impl<T, const N: usize> Parse for [T; N]
 where
     T: Parse + fmt::Debug,
 {
-    fn parse(value: &mut CharStream) -> Result<Self, ParseError>
+    fn parse<S: TokenStream>(value: &mut S) -> Result<Self, ParseError>
     where
         Self: Sized,
     {
@@ -688,7 +613,7 @@ where
     A: Parse,
     B: Parse,
 {
-    fn parse(value: &mut CharStream) -> Result<Self, ParseError>
+    fn parse<T: TokenStream>(value: &mut T) -> Result<Self, ParseError>
     where
         Self: Sized,
     {
@@ -706,7 +631,7 @@ where
     B: Parse,
     C: Parse,
 {
-    fn parse(value: &mut CharStream) -> Result<Self, ParseError>
+    fn parse<T: TokenStream>(value: &mut T) -> Result<Self, ParseError>
     where
         Self: Sized,
     {
@@ -719,14 +644,14 @@ where
 }
 
 impl<T: Parse> Parse for Option<T> {
-    fn parse(value: &mut CharStream) -> Result<Self, ParseError> {
+    fn parse<S: TokenStream>(value: &mut S) -> Result<Self, ParseError> {
         let mut __value = value.clone();
         match T::parse(&mut __value) {
             Ok(result) => {
                 value.goto(__value.pos())?;
                 Ok(Some(result))
             }
-            Err(_) => Ok(None)
+            Err(_) => Ok(None),
         }
     }
 
@@ -737,7 +662,7 @@ impl<T: Parse> Parse for Option<T> {
 }
 
 impl<T: Parse> Parse for Box<T> {
-    fn parse(value: &mut CharStream) -> Result<Self, ParseError> {
+    fn parse<S: TokenStream>(value: &mut S) -> Result<Self, ParseError> {
         Ok(Box::new(T::parse(value)?))
     }
 

@@ -4,13 +4,15 @@ use std::fs;
 
 use expression::Statement;
 use parseal::{
+    parsing::{
+        self, bufferstream::BufferStream, tokens, Group, Identifier, List, Parse, StringValue,
+    },
     Parsable,
-    parsing::{self, Parse, charstream::CharStream, tokens, Group, List, Identifier, StringValue},
 };
-use typedata::{NamedField, Enum, Struct};
+use typedata::{Enum, NamedField, Struct};
 
-mod typedata;
 mod expression;
+mod typedata;
 
 #[derive(Debug, Clone, Parsable)]
 pub enum UsePart {
@@ -28,7 +30,7 @@ pub enum AttrValue {
 pub struct Attribute {
     start: tokens::Hash,
     outer: Option<tokens::Bang>,
-    value: Group<tokens::Bracket, (Identifier, Group<tokens::Paren, List<AttrValue>>)>
+    value: Group<tokens::Bracket, (Identifier, Group<tokens::Paren, List<AttrValue>>)>,
 }
 
 #[derive(Parsable, Clone, Debug)]
@@ -60,13 +62,12 @@ pub enum Definition {
 #[derive(Parsable, Clone, Debug)]
 pub struct Rust {
     attrs: Option<Vec<Attribute>>,
-    definitions: Vec<Definition>
+    definitions: Vec<Definition>,
 }
 
 pub fn main() {
-    let file = fs::read_to_string("examples/rust/main.rs")
-        .expect("could not find file.");
-    let mut buffer = CharStream::new(file).build();
+    let file = fs::read_to_string("examples/rust/main.rs").expect("could not find file.");
+    let mut buffer: BufferStream = file.into();
     let value = Rust::parse(&mut buffer);
     println!("value: {:#?}", value);
 }

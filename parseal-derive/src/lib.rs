@@ -60,13 +60,13 @@ fn derive_struct(ident: &Ident, value: &DataStruct, generics: &Generics) -> Toke
     let (impl_generics, type_generics, where_clause) = generics.split_for_impl();
     quote! {
         impl #impl_generics Parse for #ident #type_generics #where_clause {
-            fn parse(value: &mut parsing::charstream::CharStream) -> ::std::result::Result<Self, parsing::ParseError> {
+            fn parse<T: parsing::tokenstream::TokenStream>(value: &mut T) -> ::std::result::Result<Self, parsing::ParseError> {
                 #(#definitions)*
                 #parse_result
             }
 
-            fn span(&self) -> parsing::charstream::Span {
-                parsing::charstream::Span::new(self.#first_ident.span().start, self.#last_ident.span().end)
+            fn span(&self) -> parsing::tokenstream::Span {
+                parsing::tokenstream::Span::new(self.#first_ident.span().start, self.#last_ident.span().end)
             }
         }
     }.into()
@@ -132,16 +132,16 @@ fn derive_enum(ident: &Ident, value: &DataEnum, generics: &Generics) -> TokenStr
 
         if fields.is_empty() {
             quote! {
-                Self::#variant_ident => parsing::charstream::Span::default(),
+                Self::#variant_ident => parsing::tokenstream::Span::default(),
             }
         } else {
             let first = inner_ident(&fields.first().unwrap().ident, 0);
             let last = inner_ident(&fields.last().unwrap().ident, fields.len() - 1);
-            
+
             quote! {
                 Self::#variant_ident(#(#definitions),*) =>
-                parsing::charstream::Span::new(#first.span().start, #last.span().end),
-            }    
+                parsing::tokenstream::Span::new(#first.span().start, #last.span().end),
+            }
         }
     });
 
@@ -153,7 +153,7 @@ fn derive_enum(ident: &Ident, value: &DataEnum, generics: &Generics) -> TokenStr
         }
 
         impl #impl_generics Parse for #ident #type_generics #where_clause {
-            fn parse(value: &mut parsing::charstream::CharStream) -> ::std::result::Result<Self, parsing::ParseError> {
+            fn parse<T: parsing::tokenstream::TokenStream>(value: &mut T) -> ::std::result::Result<Self, parsing::ParseError> {
                 let mut options = Vec::new();
                 let mut error: Option<parsing::ParseError> = None;
                 let mut position = value.pos();
@@ -168,7 +168,7 @@ fn derive_enum(ident: &Ident, value: &DataEnum, generics: &Generics) -> TokenStr
                 }
             }
 
-            fn span(&self) -> parsing::charstream::Span {
+            fn span(&self) -> parsing::tokenstream::Span {
                 match self {
                     #(#span_variants)*
                 }
@@ -209,10 +209,10 @@ fn derive_variant_function(
         }
         Fields::Unit => quote! {
             ::std::result::Result::Ok(Self::#field_ident)
-        }
+        },
     };
     Ok(quote! {
-        fn #func_ident(value: &mut parsing::charstream::CharStream) -> ::std::result::Result<Self, parsing::ParseError> {
+        fn #func_ident<T: parsing::tokenstream::TokenStream>(value: &mut T) -> ::std::result::Result<Self, parsing::ParseError> {
             #(#definitions)*
             #parse_result
         }

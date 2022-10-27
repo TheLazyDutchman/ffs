@@ -5,7 +5,7 @@ use std::fs;
 use parseal::{
     parsing::{
         self,
-        charstream::CharStream,
+        bufferstream::BufferStream,
         tokens::{Equal, ForwardSlash, Greater, Less},
         Identifier, Parse, StringValue,
     },
@@ -41,7 +41,7 @@ fn main() {
     let file =
         fs::read_to_string("examples/html/example.html").expect("Expected example file to exists.");
 
-    let mut buffer = CharStream::new(file).build();
+    let mut buffer: BufferStream = file.into();
 
     HTML::parse(&mut buffer).unwrap();
 }
