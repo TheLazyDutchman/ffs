@@ -1,5 +1,8 @@
 pub mod charstream;
 pub mod tokens;
+pub mod tokenstream;
+pub mod bufferstream;
+pub mod filestream;
 
 use std::{collections::HashMap, fmt, vec::IntoIter};
 
