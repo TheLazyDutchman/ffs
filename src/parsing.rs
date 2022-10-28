@@ -297,12 +297,16 @@ impl Parse for StringValue {
     where
         Self: Sized,
     {
-        match value.next() {
+        let mut __value = value.clone();
+        match __value.next() {
             Some(Token {
-                value,
+                value: stringvalue,
                 span,
                 tokentype: TokenType::String,
-            }) => Ok(StringValue { value, span }),
+            }) => {
+                value.goto(__value.pos())?;
+                Ok(StringValue { value: stringvalue, span })
+            }
             token => Err(ParseError::new(
                 &format!("Expected string literal, got {:?}", token),
                 value.pos(),
@@ -364,12 +368,16 @@ impl Parse for Identifier {
     where
         Self: Sized,
     {
-        match value.next() {
+        let mut __value = value.clone();
+        match __value.next() {
             Some(Token {
                 value: identifier,
                 span,
                 tokentype: TokenType::Identifier,
-            }) => Ok(Identifier { identifier, span }),
+            }) => {
+                value.goto(__value.pos())?;
+                Ok(Identifier { identifier, span })
+            }
             token => Err(ParseError::new(
                 &format!("Expected identifier, got {:?}", token),
                 value.pos(),
@@ -428,12 +436,16 @@ impl Parse for Number {
     where
         Self: Sized,
     {
-        match value.next() {
+        let mut __value = value.clone();
+        match __value.next() {
             Some(Token {
-                value,
+                value: numbervalue,
                 span,
                 tokentype: TokenType::Identifier,
-            }) => Ok(Number { value, span }),
+            }) => {
+                value.goto(__value.pos())?;
+                Ok(Number { value: numbervalue, span })
+            }
             token => Err(ParseError::new(
                 &format!("Expected number literal, got {:?}", token),
                 value.pos(),

@@ -53,7 +53,15 @@ impl fmt::Debug for Span {
 impl PartialOrd for Span {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         let start = self.start.partial_cmp(&other.start);
+        if let Some(Ordering::Greater) = start {
+            return Some(Ordering::Greater);
+        }
+
         let end = self.end.partial_cmp(&other.end);
+        if let Some(Ordering::Less) = end {
+            return Some(Ordering::Less);
+        }
+
         match start {
             Some(Ordering::Equal) => end,
             Some(Ordering::Greater) => match end {

@@ -3,6 +3,8 @@ use parseal::{
     Parsable,
 };
 
+use crate::typedata::TypePathReference;
+
 #[derive(Parsable, Clone, Debug)]
 pub enum Mutability {
     Mutable(#[value("mut")] Identifier),
@@ -21,6 +23,7 @@ pub struct Let {
     keyword: Identifier,
     mutable: Mutability,
     name: Identifier,
+    vartype: Option<(tokens::Colon, TypePathReference)>,
     token: tokens::Equal,
     value: Expression,
     semicolon: tokens::Semicolon,

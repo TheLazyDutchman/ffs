@@ -87,6 +87,10 @@ impl BufferStream {
         let start = self.pos();
         let delim = self.current.unwrap();
 
+        value.push(self.current.unwrap());
+        self.current = self.buffer.next();
+        self.position.advance();
+
         loop {
             match self.current {
                 Some(c) if c == delim => {

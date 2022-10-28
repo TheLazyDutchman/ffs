@@ -55,7 +55,6 @@ macro_rules! create_tokens {
                 fn parse<T: TokenStream>(value: &mut T) -> Result<Self, ParseError> where Self: Sized {
                     let string = stringify!($token);
                     let mut __value = value.clone();
-                    __value.set_whitespace(WhitespaceType::KeepAll);
                     let mut result = String::new();
                     let start = __value.pos();
 
@@ -68,6 +67,8 @@ macro_rules! create_tokens {
                             }) => result.push_str(&value),
                             _ => break
                         }
+                        __value.set_whitespace(WhitespaceType::KeepAll);
+
                         if result.len() == string.len() {
                             break
                         }
