@@ -20,7 +20,14 @@ impl Iterator for BufferStream {
             Some(c) if c.is_alphabetic() || c == '_' => self.lex_identifier(),
             Some('"') | Some('\'') => self.lex_string(),
             Some(c) if c.is_numeric() => self.lex_number(),
-            Some(c) if c.is_whitespace() => self.lex_whitespace(),
+            Some(c) if c.is_whitespace() => {
+                let whitespace = self.lex_whitespace();
+                if self.whitespace == WhitespaceType::Ignore {
+                    self.next()
+                } else {
+                    whitespace
+                }
+            },
             Some(_) => self.lex_token(),
             None => None,
         }
@@ -65,6 +72,7 @@ impl BufferStream {
                 Some(c) if c.is_alphanumeric() || c == '_' => {
                     value.push(c);
                     self.current = self.buffer.next();
+                    self.position.advance();
                 }
                 _ => break,
             }
@@ -84,11 +92,13 @@ impl BufferStream {
                 Some(c) if c == delim => {
                     value.push(c);
                     self.current = self.buffer.next();
+                    self.position.advance();
                     break;
                 }
                 Some(c) => {
                     value.push(c);
                     self.current = self.buffer.next();
+                    self.position.advance();
                 }
                 None => return None,
             }
@@ -107,6 +117,7 @@ impl BufferStream {
                 Some(c) if c.is_numeric() => {
                     value.push(c);
                     self.current = self.buffer.next();
+                    self.position.advance();
                 }
                 _ => break,
             }
@@ -134,10 +145,12 @@ impl BufferStream {
                     self.indent = 0;
                     value.push('\n');
                     self.current = self.buffer.next();
+                    self.position.newline();
                 }
                 Some(c) if c.is_whitespace() => {
                     value.push(c);
                     self.current = self.buffer.next();
+                    self.position.advance();
                 }
                 _ => {
                     self.do_indent = false;
@@ -151,24 +164,14 @@ impl BufferStream {
     }
 
     fn lex_token(&mut self) -> Option<Token> {
-        let mut value = String::new();
+        let value = String::from(self.current.unwrap());
         let start = self.pos();
-
-        loop {
-            match self.current {
-                Some(c)
-                    if !c.is_whitespace()
-                        && !c.is_alphanumeric()
-                        && ['_', '"', '\''].contains(&c) =>
-                {
-                    value.push(c);
-                }
-                _ => break,
-            }
-        }
+        self.current = self.buffer.next();
+        self.position.advance();
 
         let span = Span::new(start, self.pos());
-        Some(Token::new(value, span, TokenType::Token))
+        let token = Token::new(value, span, TokenType::Token);
+        Some(token)
     }
 }
 

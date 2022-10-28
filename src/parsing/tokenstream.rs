@@ -69,7 +69,7 @@ impl PartialOrd for Span {
     }
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub enum WhitespaceType {
     #[default]
     Ignore,

@@ -1,7 +1,7 @@
 use std::fmt;
 
 use super::{
-    tokenstream::{self, TokenStream, TokenType},
+    tokenstream::{self, TokenStream, TokenType, WhitespaceType, Span},
     Parse, ParseError,
 };
 
@@ -54,15 +54,31 @@ macro_rules! create_tokens {
             impl Parse for $id {
                 fn parse<T: TokenStream>(value: &mut T) -> Result<Self, ParseError> where Self: Sized {
                     let string = stringify!($token);
-                    match value.next() {
-                        Some(tokenstream::Token {
-                            value,
-                            span,
-                            tokentype: TokenType::Token
-                        }) if value == string => {
-                            Ok(Self { span })
+                    let mut __value = value.clone();
+                    __value.set_whitespace(WhitespaceType::KeepAll);
+                    let mut result = String::new();
+                    let start = __value.pos();
+
+                    loop {
+                        match __value.next() {
+                            Some(tokenstream::Token {
+                                value,
+                                span: _,
+                                tokentype: TokenType::Token
+                            }) => result.push_str(&value),
+                            _ => break
                         }
-                        token => Err(ParseError::new(&format!("Expected token '{}', got {:?}", string, token), value.pos()))
+                        if result.len() == string.len() {
+                            break
+                        }
+                    }
+
+                    if string == result {
+                        let end = __value.pos();
+                        value.goto(end.clone())?;
+                        return Ok(Self { span: Span::new(start, end) } )
+                    } else {
+                        Err(ParseError::new("Did not find token '{}'.", value.pos()))
                     }
                 }
 
@@ -102,7 +118,7 @@ macro_rules! create_delimiters {
                     match value.next() {
                         Some(tokenstream::Token {
                             value, span, tokentype: TokenType::Token
-                        }) if value.chars().next().unwrap() == chr => Ok(Self { span }),
+                        }) if value.chars().nth(0).unwrap() == chr => Ok(Self { span }),
                         token => Err(ParseError(format!("Expected left side of: '{}', got '{:?}'.", stringify!($token), token), value.pos()))
                     }
                 }
@@ -137,8 +153,11 @@ macro_rules! create_delimiters {
                     match value.next() {
                         Some(tokenstream::Token {
                             value, span, tokentype: TokenType::Token
-                        }) if value.chars().next().unwrap() == chr => Ok(Self { span }),
-                        token => Err(ParseError(format!("Expected right side of: '{}', got '{:?}'.", stringify!($token), token), value.pos()))
+                        }) if value.chars().nth(0).unwrap() == chr => Ok(Self { span }),
+                        token => {
+                            println!("got: {:?}, expected: {}", token, chr);
+                            Err(ParseError(format!("Expected right side of: '{}', got '{:?}'.", stringify!($token), token), value.pos()))
+                        }
                     }
                 }
 
