@@ -13,6 +13,17 @@ use parseal::{
     Parsable,
 };
 
+#[derive(Debug, Parsable, Clone)]
+pub struct JSONList {
+    value: Box<List<JSON>>
+}
+
+impl From<JSONList> for Vec<ParseNode<<JSON as TreeData>::Object, <JSON as TreeData>::List>> {
+    fn from(value: JSONList) -> Self {
+        value.value.as_ref().clone().into()
+    }
+}
+
 #[derive(Clone, Parsable, Debug)]
 pub struct JSON {
     value: ParseNode<<JSON as TreeData>::Object, <JSON as TreeData>::List>,
@@ -21,7 +32,7 @@ pub struct JSON {
 impl TreeData for JSON {
     type Object = Group<Brace, List<NamedValue<StringValue, Colon, JSON>, Comma>>;
 
-    type List = Group<Bracket, List<JSON, Comma>>;
+    type List = Group<Bracket, JSONList>;
 
     fn value(&self) -> ParseNode<Self::Object, Self::List> {
         self.value.clone()

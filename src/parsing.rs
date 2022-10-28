@@ -441,7 +441,7 @@ impl Parse for Number {
             Some(Token {
                 value: numbervalue,
                 span,
-                tokentype: TokenType::Identifier,
+                tokentype: TokenType::Number,
             }) => {
                 value.goto(__value.pos())?;
                 Ok(Number { value: numbervalue, span })
